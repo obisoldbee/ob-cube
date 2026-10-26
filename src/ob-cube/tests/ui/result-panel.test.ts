@@ -30,6 +30,8 @@ function view(patch: Partial<ResultView> = {}): ResultView {
     engineVersion: 'ob-cube 0.1.0 / ss-2',
     submit: null,
     compareElapsedMs: null,
+    difficultyScore: null,
+    difficultyLabel: null,
     participant: 'human',
     pauseCount: 0,
     pausedTotalMs: 0,

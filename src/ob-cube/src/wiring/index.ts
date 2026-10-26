@@ -31,6 +31,8 @@ import {
 import { namespaced } from '../services/storage';
 import type { ChallengeConfig } from '../services';
 import { presetById, presetOptions } from '../puzzle/presets';
+import { estimatePuzzleDifficulty } from '../puzzle';
+import type { DifficultyEstimate } from '../puzzle';
 import { Workspace } from '../ui/shell';
 import type { UiPorts } from '../ui/shell';
 import { formatClockTime, formatElapsed, formatSize } from '../ui/format';
@@ -131,6 +133,48 @@ export function bootstrap(host: HTMLElement): void {
   }
 
   let session = createSession();
+
+  /** 难度估计只依赖题面 + 观察/蒙尘/限时配置，按 key 缓存避免每帧重算 */
+  let difficultyKey = '';
+  let difficulty: DifficultyEstimate | null = null;
+  function difficultyNow(): DifficultyEstimate {
+    const key = [
+      session.record.challenge_id,
+      session.observationMode,
+      session.dustMode,
+      session.timeLimitMs ?? 'none',
+    ].join('|');
+    if (difficulty === null || key !== difficultyKey) {
+      difficulty = estimatePuzzleDifficulty(session.record, {
+        observationMode: session.observationMode,
+        dustMode: session.dustMode,
+        timeLimitMs: session.timeLimitMs,
+      });
+      difficultyKey = key;
+    }
+    return difficulty;
+  }
+
+  /** 同题面历史中位耗时（F13）。当前 run 自身的记录不计入参照。 */
+  function compareElapsedMs(): number | null {
+    try {
+      const currentRun = session.rules.run_id;
+      const values = history
+        .list()
+        .records.filter(
+          (record) =>
+            record.id !== currentRun && record.result.rules.challenge_id === session.rules.challenge_id,
+        )
+        .map((record) => record.result.elapsed_ms)
+        .filter((ms) => Number.isFinite(ms) && ms > 0)
+        .sort((a, b) => a - b);
+      if (values.length === 0) return null;
+      const mid = Math.floor(values.length / 2);
+      return values.length % 2 === 1 ? values[mid]! : Math.round((values[mid - 1]! + values[mid]!) / 2);
+    } catch {
+      return null;
+    }
+  }
 
   // 赋值延迟到「启动」段：ports 的方法只在运行期被调用，那时两者一定已就绪。
   let workspace!: Workspace;
@@ -238,8 +282,8 @@ export function bootstrap(host: HTMLElement): void {
       participant: config.participant,
       scrambleMethod: 'random_moves',
       seed: session.rules.seed,
-      difficultyScore: null,
-      difficultyLabel: null,
+      difficultyScore: difficultyNow().score,
+      difficultyLabel: difficultyNow().level,
     };
   }
 
@@ -323,7 +367,9 @@ export function bootstrap(host: HTMLElement): void {
       startedAt: result.rules.created_at,
       engineVersion: `${result.engine_version} / ${result.rules.notation_version}`,
       submit: session.lastSubmitResult,
-      compareElapsedMs: null,
+      compareElapsedMs: compareElapsedMs(),
+      difficultyScore: difficultyNow().score,
+      difficultyLabel: difficultyNow().level,
       pauseCount: result.pause_count,
       pausedTotalMs: result.paused_total_ms,
       // 记录里已落盘的口径直接投影，避免结果页与会话层各算一遍（同源）。

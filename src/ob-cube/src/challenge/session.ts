@@ -108,6 +108,8 @@ export class ChallengeSession {
   private pausedAt: number | null = null;
   private pausedTotalMs = 0;
   private pauseCount = 0;
+  /** 首次满足还原条件的时刻（进入 solved_pending），PRD §7.2 的 solved_at_ms */
+  private solvedAt: number | null = null;
   private readonly clock: Clock;
   private readonly events: RunEvent[] = [];
   private view: ViewState = { ...DEFAULT_VIEW };
@@ -215,6 +217,27 @@ export class ChallengeSession {
     const seconds = this.elapsedMs() / 1000;
     return seconds > 0 ? this.moveCount / seconds : 0;
   }
+  /** PRD §7.2：开始 → 第一步操作（无操作时为 null） */
+  firstMoveMs(): number | null {
+    const first = this.events.find((event) => event.type === 'move');
+    return first?.at_ms ?? null;
+  }
+  /** PRD §7.2：开始 → 首次满足还原条件（无还原为 null） */
+  solvedAtMs(): number | null {
+    return this.solvedAt;
+  }
+  /** PRD §7.2：开始 → 成功提交（未成功提交为 null） */
+  submitMs(): number | null {
+    for (let i = this.events.length - 1; i >= 0; i -= 1) {
+      const event = this.events[i];
+      if (event && event.type === 'submit' && event.ok) return event.at_ms;
+    }
+    return null;
+  }
+  /** PRD §7.2：总墙钟时长（不扣暂停），仅旁证，不参与判定与排序 */
+  wallElapsedMs(): number {
+    return this.elapsedMs() + this.pausedTotalMs;
+  }
   get pauseStats(): { count: number; totalMs: number } {
     return { count: this.pauseCount, totalMs: this.pausedTotalMs };
   }
@@ -241,6 +264,7 @@ export class ChallengeSession {
     this.pausedAt = null;
     this.pausedTotalMs = 0;
     this.pauseCount = 0;
+    this.solvedAt = null;
     this.events.length = 0;
     this.obsSeq = 0;
     this.observeCount = 0;
@@ -531,6 +555,7 @@ export class ChallengeSession {
       // 步数耗尽只在「已还原」时让位于提交；其余一律终止。
       if (isSolved(this.state)) {
         this.statusValue = 'solved_pending';
+        this.solvedAt ??= this.elapsedMs();
       } else {
         this.finish('ended_move_limit', '超出步数上限');
       }
@@ -553,6 +578,7 @@ export class ChallengeSession {
     const solved = evaluateSolved(this.state).solved;
     if (solved && this.statusValue === 'running') {
       this.statusValue = 'solved_pending';
+      this.solvedAt ??= this.elapsedMs();
     } else if (
       !solved &&
       this.statusValue === 'running' &&
@@ -693,6 +719,10 @@ export class ChallengeSession {
       engine_version: ENGINE_VERSION,
       htm_layer_count: metrics.htmLayer,
       qtm_count: metrics.qtm,
+      wall_elapsed_ms: this.wallElapsedMs(),
+      first_move_ms: this.firstMoveMs(),
+      solved_at_ms: this.solvedAtMs(),
+      submit_ms: this.submitMs(),
     };
   }
 

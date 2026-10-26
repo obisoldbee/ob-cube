@@ -179,6 +179,12 @@ export class ResultPanel {
       fact('题面', `${view.rules.cubeSize}×${view.rules.cubeSize} · ${view.rules.challengeId}`),
       fact('生成', `${gen}${view.rules.seed ? ` · seed ${view.rules.seed}` : ''}`),
       fact('观察', `${observationLabel(view.rules.observationMode)} · 蒙尘 ${view.rules.dustMode ? '开' : '关'}`),
+      fact(
+        '难度',
+        view.difficultyLabel === null
+          ? EM_DASH
+          : `${view.difficultyLabel}${view.difficultyScore === null ? '' : ` · 估计 ${view.difficultyScore.toFixed(2)}`}`,
+      ),
       fact('限制', `限时 ${view.rules.timeLimitMs === null ? '—' : formatElapsed(view.rules.timeLimitMs)} · 限步 ${view.rules.moveLimit ?? '—'}`),
     );
     section.append(title, list);

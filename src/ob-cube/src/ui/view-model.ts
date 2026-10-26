@@ -120,6 +120,9 @@ export interface ResultView {
   readonly submit: SubmitResult | null;
   /** 同题面历史中位耗时，用于指标格下方的对比参照句（无历史时为 null，整行不渲染） */
   readonly compareElapsedMs: number | null;
+  /** F17：启发式难度估计（非最短解距离，AC-52 的标注不可关闭） */
+  readonly difficultyScore: number | null;
+  readonly difficultyLabel: string | null;
   /** v1.1（AC-59）：暂停口径摘要 */
   readonly pauseCount: number;
   readonly pausedTotalMs: number;

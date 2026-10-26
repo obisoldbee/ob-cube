@@ -256,6 +256,14 @@ export interface ChallengeResult {
   htm_layer_count: number;
   /** PRD §13.3 / AC-49：QTM 口径（180° 计 2 步），随记录落盘 */
   qtm_count: number;
+  /**
+   * PRD §7.2 派生计时指标（v2.0 P1）：全部由事件流与计时字段派生，
+   * 不改变记录格式；旧记录缺键时按 null / 0 处理。
+   */
+  wall_elapsed_ms?: number;
+  first_move_ms?: number | null;
+  solved_at_ms?: number | null;
+  submit_ms?: number | null;
 }
 
 // ---------------------------------------------------------------------------

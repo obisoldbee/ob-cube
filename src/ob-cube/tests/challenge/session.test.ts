@@ -518,3 +518,53 @@ describe('F14 after_move 观察门控（PRD §8.2 C6）', () => {
     expect(session.getProgress().observation_allowed).toBe(true);
   });
 });
+
+describe('§7.2 派生计时指标', () => {
+  it('first_move_ms / solved_at_ms / submit_ms / wall_elapsed_ms 可从结果对象读取', () => {
+    const { session, time } = makeSession({ timeLimitMs: 60_000 });
+    session.start();
+    time.advance(2_000);
+    const inverse = (move: string): string => {
+      const spec = parseMove(move, 3);
+      const base = spec.normalized.replace(/(['2])$/, '');
+      return spec.amount === 1 ? `${base}'` : spec.amount === 3 ? base : `${base}2`;
+    };
+    for (const move of [...session.record.scramble].reverse().map(inverse)) {
+      time.advance(100);
+      session.applyMoveNotation(move);
+    }
+    time.advance(500);
+    session.submitSolution();
+    const result = session.getChallengeResult();
+    expect(result.first_move_ms).toBe(2_100);
+    expect(result.solved_at_ms).not.toBeNull();
+    expect(result.submit_ms).not.toBeNull();
+    expect(result.submit_ms!).toBeGreaterThanOrEqual(result.solved_at_ms!);
+    expect(result.wall_elapsed_ms).toBe(result.elapsed_ms + result.paused_total_ms);
+  });
+
+  it('未提交成功时 submit_ms 为 null；未还原时 solved_at_ms 为 null', () => {
+    const { session, time } = makeSession();
+    session.start();
+    time.advance(1000);
+    session.applyIntent('R', [1], 1, false);
+    session.abandon('stop');
+    const result = session.getChallengeResult();
+    expect(result.submit_ms).toBeNull();
+    expect(result.solved_at_ms).toBeNull();
+  });
+
+  it('暂停段的墙钟时长包含暂停，活跃时长不含（AC-59 旁证）', () => {
+    const { session, time } = makeSession();
+    session.start();
+    time.advance(1_000);
+    session.pause();
+    time.advance(4_000);
+    session.resume();
+    time.advance(1_000);
+    session.abandon('done');
+    const result = session.getChallengeResult();
+    expect(result.elapsed_ms).toBe(2_000);
+    expect(result.wall_elapsed_ms).toBe(6_000);
+  });
+});

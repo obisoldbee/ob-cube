@@ -19,3 +19,5 @@ export {
   reproducePuzzle,
 } from './puzzle';
 export type { CreatePuzzleParams, DifficultyLabel, PuzzleGeneration, PuzzleRecord, Reproduction } from './puzzle';
+export { estimateDifficulty, estimatePuzzleDifficulty } from './difficulty';
+export type { DifficultyEstimate, DifficultyInput, DifficultyLevel, DifficultyTag } from './difficulty';
