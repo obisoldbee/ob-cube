@@ -130,7 +130,7 @@ describe('结果面板（PRD §9.1 五区块 / §9.2 五条诚实标注）', () 
   it('有同题面历史时只给总耗时挂一行对比', () => {
     const el = render({ compareElapsedMs: 118_020 });
     const compare = Array.from(el.querySelectorAll('.metric__compare')).map((node) => node.textContent);
-    expect(compare).toEqual(['同题面中位 1:58.02']);
+    expect(compare).toEqual(['同题面中位总耗时 1:58.02']);
   });
 });
 

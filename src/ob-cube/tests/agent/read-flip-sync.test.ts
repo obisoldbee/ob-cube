@@ -86,13 +86,25 @@ describe('只读 API 内的状态翻转必须同步 UI（AC-28）', () => {
     expect(onMutate).toHaveBeenCalledTimes(1);
   });
 
-  it('运行中正常轮询不触发 onMutate（读操作零副作用）', () => {
+  it('getProgress 轮询不触发 onMutate（纯读无副作用）', () => {
     const { agent, session, time, onMutate } = makeAgent();
     session.start();
     time.advance(1000);
     agent.getProgress();
-    agent.observe();
+    agent.getProgress();
     expect(onMutate).not.toHaveBeenCalled();
     expect(session.status).toBe('running');
+  });
+
+  it('成功 observe 必须通知宿主：交付一份新观察是可见状态变化（R2-02）', () => {
+    const { agent, session, onMutate } = makeAgent();
+    session.start();
+    const before = agent.getChallengeInfo();
+    expect(before.status).toBe('running');
+    expect(onMutate).not.toHaveBeenCalled();
+
+    agent.observe();
+    expect(onMutate).toHaveBeenCalledTimes(1); // 旧实现这里为 0，面板停在旧快照
+    expect(session.status).toBe('running'); // 生命周期没变，但界面必须刷新
   });
 });

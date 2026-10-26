@@ -43,6 +43,8 @@ export interface UiPorts {
   applyTurn(intent: TurnIntent, merged: boolean): void;
   /** F16（P1）：直接提交一条记法（如 `2Rw'`），与按钮/键盘共用同一提交点 */
   applyNotation(raw: string): void;
+  /** R2-02：显式获取一份观察（after_move / restricted 等有门控的档） */
+  observe(): void;
   /** AC-81：hover 预览被转动物理层的外轮廓（30% 透明） */
   previewLayer(face: FaceId, layers: LayerSpec): void;
   clearLayerPreview(): void;
@@ -91,6 +93,7 @@ const NOOP_PORTS: UiPorts = {
   resetCube: () => undefined,
   applyTurn: () => undefined,
   applyNotation: () => undefined,
+  observe: () => undefined,
   previewLayer: () => undefined,
   clearLayerPreview: () => undefined,
   viewStep: () => undefined,
@@ -219,7 +222,10 @@ export class Workspace {
       onPrefixSync: (prefix) => this.keyboard.syncPrefix(prefix),
     });
 
-    this.obsPanel = new ObservationPanel({ onCopyObservationId: (text) => this.ports.copy(text, '观察 ID') });
+    this.obsPanel = new ObservationPanel({
+      onCopyObservationId: (text) => this.ports.copy(text, '观察 ID'),
+      onObserve: () => this.ports.observe(),
+    });
     this.logPanel = new LogPanel();
     this.agentPanel = new AgentPanel({ onCopyObservationId: (text) => this.ports.copy(text, '观察 ID') });
     this.historyPanel = new HistoryPanel({
@@ -270,6 +276,11 @@ export class Workspace {
 
     this.toastEl = document.createElement('div');
     this.toastEl.className = 'toast';
+    // 读屏要能听到提示：状态类播报用 status + polite，不打断当前朗读。
+    // 只看视觉的话，这个节点等于对辅助技术不存在（评审 §5）。
+    this.toastEl.setAttribute('role', 'status');
+    this.toastEl.setAttribute('aria-live', 'polite');
+    this.toastEl.setAttribute('aria-atomic', 'true');
     this.toastEl.hidden = true;
     this.appbar = this.buildAppbar();
     this.modal = this.buildModal();

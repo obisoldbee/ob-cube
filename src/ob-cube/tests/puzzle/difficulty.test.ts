@@ -24,6 +24,26 @@ describe('F17 难度启发式估计（PRD §6.2）', () => {
     expect(estimate.estimatedDistance).toBeGreaterThanOrEqual(0);
   });
 
+  it('文档示例与公式实算一致（OD-01 算例勘误的可执行版本）', () => {
+    // PRD §6.3 的三个典型算例：O=0、C=0、pW=0，分数只由 S + 0.8·dF + 0.5·(nE/10) 决定。
+    // 2 阶 4 步 2 面 → 1.0 + 1.6 + 0.2 = 2.8（入门）
+    const intro = estimateDifficulty(input({ size: 2, scramble: ['R', 'U', "R'", "U'"] }));
+    expect(intro.score).toBeCloseTo(2.8, 2);
+    expect(intro.level).toBe('入门');
+
+    // 3 阶 6 步 3 面 → 2.5 + 2.4 + 0.3 = 5.2（常规）
+    const standard = estimateDifficulty(input({ scramble: ['R', 'U', 'F', "R'", "U'", "F'"] }));
+    expect(standard.score).toBeCloseTo(5.2, 2);
+    expect(standard.level).toBe('常规');
+
+    // 3 阶 20 步 6 面 → 2.5 + 4.8 + 1.0 = 8.3（高难度）——原文曾把它当"常规"
+    const hard = estimateDifficulty(
+      input({ scramble: [...['R', 'U', 'F', 'L', 'D', 'B'], ...['R', 'U', 'F', 'L', 'D', 'B'], ...['R', 'U', 'F', 'L', 'D', 'B'], 'R', 'U'] }),
+    );
+    expect(hard.score).toBeCloseTo(8.3, 2);
+    expect(hard.level).toBe('高难度');
+  });
+
   it('观察模式按五档互斥查表计入 O（完整 0 / 三面 1 / 操作后 1.5 / 单面 2 / 受限 2.5）', () => {
     const base = estimateDifficulty(input({ observationMode: 'full' })).score;
     expect(estimateDifficulty(input({ observationMode: 'three_faces' })).score - base).toBeCloseTo(1.0, 2);

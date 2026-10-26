@@ -4,7 +4,7 @@
 > 每次 Phase 开始时把未决项复现到工作上下文最前，逐条判断能否关闭。
 > 来源：`docs/reviews/ob-cube-code-prd-review-full.md` 第二部分（PRD 自身需要调整的地方）。
 
-**当前：8 未决 / 0 已决**
+**当前：9 未决 / 0 已决**
 
 | # | Date | Source | Open Item | Related Constraints | Current Leaning | Blocked By | Resolves When | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -33,3 +33,21 @@
 | 一.6 `solved_pending` 刷新丢结果 | 已修：结算为 `ended_solved`，`submit_ms` 为 null |
 | 一.7 历史缺打乱序列、回放用结束视角 | 已修：结果带 `scramble`；回放按步恢复视野 |
 | 一.8 契约漂移 / runId / 幂等 / 统计 | 已修：13 字段、runId 校验、缓存前置、按 run 清零、成功中位数 |
+
+---
+
+## 2026-10-27 更新（R2 复审轮）
+
+### 新增
+
+| # | Date | Source | Open Item | Related Constraints | Current Leaning | Blocked By | Resolves When | Status |
+|---|---|---|---|---|---|---|---|---|
+| OD-09 | 2026-10-27 | R2 Q01 | 受限观察的 24 次预算是否也约束 3D/2D 画面：只限结构化快照（现状），还是预算耗尽后画面一起冻结 | `05-dust-observation.md` §8.2 C6、R-4、R-8 | 结构化配额（现状）：画面显示当前授权面属物理模型，预算约束的是「交付几份可推理的快照」 | 需确认评测分组口径：API Agent 与「截图点按」的 GUI Agent 是否要可比 | 用户裁定；若选「全渠道受限」需新增渲染冻结分支 | OPEN |
+
+### 状态更新（不关闭，只补进展）
+
+- **OD-01 难度公式**：文档里两个与公式矛盾的算例已按公式更正（2 阶 4 步 2 面 = 2.8、3 阶 6 步 3 面 = 5.2、3 阶 20 步 6 面 = 8.3），并补成 `tests/puzzle/difficulty.test.ts` 的可执行断言。阈值是否合理仍待运行数据，本项保持 OPEN。
+- **OD-06 主指标**：本轮先消除混用——当前值与历史中位数统一用 `elapsed_ms`，`services/history.ts` 的 `SCORE_METRIC` 是唯一切换点。裁定后改它一处即可，本项保持 OPEN。
+- **OD-05 双击归并**：R2-03 的事件错误已修（换视角/观察/暂停关闭窗口、序号独立递增）。是否移出正式评测仍未定，本项保持 OPEN。
+- **OD-07 记录截断**：结果已带 `events_dropped` 与尾部保留；分块持久化未做，本项保持 OPEN。
+- **OD-08 契约正文**：R2 提出的「裁定写回正文」本轮只做了 §6.3 算例与交付状态更正，整章重写仍未做，本项保持 OPEN。

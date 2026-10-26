@@ -127,6 +127,21 @@ export class HistoryService {
   }
 }
 
+/**
+ * 成绩口径开关。`elapsed` = 总耗时（含还原后等待提交的时间）；
+ * `solved` = 还原用时（`solved_at_ms`，缺失时回退总耗时）。
+ *
+ * 目前取 `elapsed`，因为它与结果卡片主指标一致；OD-06 若裁定改用还原耗时，
+ * 必须**同时**改：本常量、结果卡片的主指标与标签、TPS 分母，
+ * 否则又回到"当前值与历史值不同终点"的混用。
+ */
+const SCORE_METRIC: 'elapsed' | 'solved' = 'elapsed';
+
+function scoreOf(result: ChallengeResult): number {
+  if (SCORE_METRIC === 'solved') return result.solved_at_ms ?? result.elapsed_ms;
+  return result.elapsed_ms;
+}
+
 /** 「同题同规则」的判定口径：只比这几项，缺一项就不是可比的成绩 */
 export interface ComparableRules {
   readonly challenge_id: string;
@@ -143,9 +158,12 @@ export interface ComparableRules {
  * 三条过滤缺一不可：
  *  1. 只算**成功**运行——放弃、超时、步数耗尽的耗时不是"这道题要多久"；
  *  2. 只算**同规则**运行——观察档 / 蒙尘 / 时限 / 步限任一不同就不可比；
- *  3. 用 `solved_at_ms`（还原时刻）而不是 `elapsed_ms`（含等待提交的时间）——
- *     后者把"点了提交按钮前发呆"算进解题速度。
- * 旧实现只筛同题 ID 与正数耗时，三类污染记录都会进中位数。
+ *  3. 与结果卡片**同一口径**（见 `SCORE_METRIC`）。
+ *
+ * 第 3 条是 R2-05 的修复：上一版这里取 `solved_at_ms`，卡片却显示 `elapsed_ms`，
+ * 于是"跑 10 秒、30 秒才提交"的一局会同时出现「总耗时 30 秒」和「同题中位 10 秒」，
+ * 两个不同终点的数被放在同一比较位。OD-06 裁定前统一按总耗时比，裁定后
+ * 改 `SCORE_METRIC` 一处即可同时切换（卡片、中位数、TPS 分母必须一起改）。
  */
 export function medianSolvedElapsed(
   records: readonly RunRecord[],
@@ -166,7 +184,7 @@ export function medianSolvedElapsed(
         other.move_limit === rules.move_limit
       );
     })
-    .map((record) => record.result.solved_at_ms ?? record.result.elapsed_ms)
+    .map((record) => scoreOf(record.result))
     .filter((ms) => Number.isFinite(ms) && ms > 0)
     .sort((a, b) => a - b);
   if (values.length === 0) return null;

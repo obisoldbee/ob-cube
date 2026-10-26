@@ -1,0 +1,301 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - complementary "挑战信息与会话控制" [ref=e4]:
+      - region "挑战信息" [ref=e5]:
+        - generic [ref=e6]:
+          - heading "挑战信息" [level=2] [ref=e7]
+          - generic [ref=e8]: 进行中
+        - generic [ref=e9]:
+          - generic [ref=e10]: 阶数
+          - radiogroup "选择阶数" [ref=e11]:
+            - radio "2" [ref=e12] [cursor=pointer]
+            - radio "3" [checked] [ref=e13] [cursor=pointer]
+            - radio "4" [ref=e14] [cursor=pointer]
+        - timer "已用时间" [ref=e15]:
+          - generic [ref=e16]: 0:00
+          - generic [ref=e17]: ".08"
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - generic [ref=e20]: 题面 ID
+            - generic [ref=e21]: c3-g1-af96cd8babe86ed5
+            - button "复制题面 ID" [ref=e22] [cursor=pointer]
+          - generic [ref=e26]:
+            - generic [ref=e27]: 剩余时间
+            - generic [ref=e28]: 不限时
+          - generic [ref=e29]:
+            - generic [ref=e30]: 已用时间
+            - generic [ref=e31]: 0:00.08
+          - generic [ref=e32]:
+            - generic [ref=e33]: 步数 · HTM
+            - generic [ref=e34]: "0"
+          - generic [ref=e35]:
+            - generic [ref=e36]: 难度估计
+            - generic [ref=e37]: 高难度 · 10.96
+        - generic [ref=e38]:
+          - generic [ref=e39]: 提交机会
+          - img "剩余 3 次提交机会" [ref=e40]
+      - region "挑战配置" [ref=e44]:
+        - generic [ref=e45]:
+          - heading "挑战配置" [level=2] [ref=e46]
+          - generic [ref=e47]: 改动即生成新题面
+        - generic [ref=e48]:
+          - generic [ref=e49]:
+            - generic [ref=e50]: 时限
+            - radiogroup "时限" [ref=e51]:
+              - radio "不限时" [checked]
+              - radio "2 分钟"
+              - radio "5 分钟"
+              - radio "20 分钟"
+          - generic [ref=e52]:
+            - generic [ref=e53]: 步数上限
+            - radiogroup "步数上限" [ref=e54]:
+              - radio "不限步" [checked]
+              - radio "20 步"
+              - radio "50 步"
+              - radio "100 步"
+          - generic [ref=e55]:
+            - generic [ref=e56]: 蒙层
+            - radiogroup "蒙层" [ref=e57]:
+              - radio "预观察（先看再开始）" [checked]
+              - radio "遮蔽（开始前隐藏）"
+          - generic [ref=e58]:
+            - generic [ref=e59]: 观察模式
+            - radiogroup "观察模式" [ref=e60]:
+              - radio "完整"
+              - radio "三面"
+              - radio "单面" [checked]
+              - radio "操作后"
+              - radio "受限"
+          - generic [ref=e61]:
+            - generic [ref=e62]: 参与者
+            - radiogroup "参与者" [ref=e63]:
+              - radio "人类" [checked]
+              - radio "AI Agent"
+          - generic [ref=e64]:
+            - generic [ref=e65]: 本地统计
+            - radiogroup "本地统计" [ref=e66]:
+              - radio "开（仅存本机）" [checked]
+              - radio "关"
+          - generic [ref=e67]:
+            - generic [ref=e68]: 配色
+            - radiogroup "配色" [ref=e69]:
+              - radio "默认六色" [checked]
+              - radio "单色高对比"
+          - generic [ref=e70]:
+            - generic [ref=e71]: 题目
+            - radiogroup "题目来源" [ref=e72]:
+              - radio "随机" [checked]
+              - radio "题库"
+              - radio "seed"
+      - region "会话控制" [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - button "暂停" [ref=e76] [cursor=pointer]
+            - button "结束" [ref=e80] [cursor=pointer]
+          - paragraph [ref=e81]: Esc 放弃挑战
+    - main "魔方操作区" [ref=e82]:
+      - generic [ref=e83]:
+        - tablist "转动层分类" [ref=e84]:
+          - tab "单层" [selected] [ref=e85] [cursor=pointer]
+          - tab "中层" [ref=e86] [cursor=pointer]
+          - tab "宽转" [ref=e87] [cursor=pointer]
+        - status [ref=e88]:
+          - generic [ref=e89]: 就绪
+          - generic [ref=e90]:
+            - generic [ref=e91]: 3×3
+            - generic [ref=e92]: HTM
+        - form "记法输入" [ref=e93]:
+          - textbox "输入一条转动记法" [ref=e94]:
+            - /placeholder: 记法 e.g. R U2 2-3Rw
+          - button "执行" [ref=e95] [cursor=pointer]
+      - generic:
+        - paragraph: 按 W A S D X Q 转面 · ⇧ 反向 · 连按两下转 180°
+        - paragraph: 完整键位图在右下角，按 ? 打开
+      - generic "魔方 3D 舞台" [ref=e96]:
+        - img "魔方三维视图" [ref=e97]
+        - generic [ref=e99]:
+          - button "打乱" [ref=e100] [cursor=pointer]
+          - button "重置" [ref=e107] [cursor=pointer]
+        - generic [ref=e111]:
+          - group "视角旋转" [ref=e112]:
+            - button "视角上移 90°" [ref=e113] [cursor=pointer]
+            - button "视角左移 90°" [ref=e116] [cursor=pointer]
+            - button "复位默认视角（Home）" [ref=e119] [cursor=pointer]
+            - button "视角右移 90°" [ref=e123] [cursor=pointer]
+            - button "视角下移 90°" [ref=e126] [cursor=pointer]
+          - group "面视角" [ref=e130]:
+            - button "上视" [ref=e131] [cursor=pointer]:
+              - generic [ref=e132]: U
+              - generic [ref=e133]: 上
+            - button "右视" [ref=e134] [cursor=pointer]:
+              - generic [ref=e135]: R
+              - generic [ref=e136]: 右
+            - button "前视" [ref=e137] [cursor=pointer]:
+              - generic [ref=e138]: F
+              - generic [ref=e139]: 前
+            - button "下视" [ref=e140] [cursor=pointer]:
+              - generic [ref=e141]: D
+              - generic [ref=e142]: 下
+            - button "左视" [ref=e143] [cursor=pointer]:
+              - generic [ref=e144]: L
+              - generic [ref=e145]: 左
+            - button "后视" [ref=e146] [cursor=pointer]:
+              - generic [ref=e147]: B
+              - generic [ref=e148]: 后
+        - generic [ref=e150]:
+          - generic [ref=e151]:
+            - generic [ref=e152]: 面键
+            - generic [ref=e153]:
+              - button "打开完整快捷键说明" [ref=e154] [cursor=pointer]
+              - button "折叠键位图" [ref=e157] [cursor=pointer]
+          - generic [aria-hidden] [ref=e160]:
+            - generic [ref=e161]:
+              - generic [ref=e162]: Q
+              - generic [ref=e163]: B
+            - generic [ref=e164]:
+              - generic [ref=e165]: W
+              - generic [ref=e166]: U
+            - generic [ref=e168]:
+              - generic [ref=e169]: A
+              - generic [ref=e170]: L
+            - generic [ref=e171]:
+              - generic [ref=e172]: S
+              - generic [ref=e173]: F
+            - generic [ref=e174]:
+              - generic [ref=e175]: D
+              - generic [ref=e176]: R
+            - generic [ref=e178]:
+              - generic [ref=e179]: X
+              - generic [ref=e180]: D
+          - paragraph [ref=e182]: Shift 反向 · 连按两下 180° · 1/2/3/Z 层深前缀
+      - generic "转动按钮矩阵" [ref=e183]:
+        - button "层转分类说明" [ref=e185] [cursor=pointer]
+        - generic [ref=e188]:
+          - generic [ref=e189]:
+            - generic [ref=e190]:
+              - generic [ref=e191]: U
+              - generic [ref=e192]: 上层
+            - generic [ref=e193]:
+              - button "上层顺时针 90°" [ref=e194] [cursor=pointer]:
+                - generic [ref=e195]: U
+                - generic: W
+              - button "上层180°" [ref=e196] [cursor=pointer]:
+                - generic [ref=e197]: U2
+              - button "上层逆时针 90°" [ref=e198] [cursor=pointer]:
+                - generic [ref=e199]: U'
+                - generic:
+                  - generic:
+                    - generic: ⇧
+                    - generic: W
+          - generic [ref=e200]:
+            - generic [ref=e201]:
+              - generic [ref=e202]: R
+              - generic [ref=e203]: 右层
+            - generic [ref=e204]:
+              - button "右层顺时针 90°" [ref=e205] [cursor=pointer]:
+                - generic [ref=e206]: R
+                - generic: D
+              - button "右层180°" [ref=e207] [cursor=pointer]:
+                - generic [ref=e208]: R2
+              - button "右层逆时针 90°" [ref=e209] [cursor=pointer]:
+                - generic [ref=e210]: R'
+                - generic:
+                  - generic:
+                    - generic: ⇧
+                    - generic: D
+          - generic [ref=e211]:
+            - generic [ref=e212]:
+              - generic [ref=e213]: F
+              - generic [ref=e214]: 前层
+            - generic [ref=e215]:
+              - button "前层顺时针 90°" [ref=e216] [cursor=pointer]:
+                - generic [ref=e217]: F
+                - generic: S
+              - button "前层180°" [ref=e218] [cursor=pointer]:
+                - generic [ref=e219]: F2
+              - button "前层逆时针 90°" [ref=e220] [cursor=pointer]:
+                - generic [ref=e221]: F'
+                - generic:
+                  - generic:
+                    - generic: ⇧
+                    - generic: S
+          - generic [ref=e222]:
+            - generic [ref=e223]:
+              - generic [ref=e224]: D
+              - generic [ref=e225]: 下层
+            - generic [ref=e226]:
+              - button "下层顺时针 90°" [ref=e227] [cursor=pointer]:
+                - generic [ref=e228]: D
+                - generic: X
+              - button "下层180°" [ref=e229] [cursor=pointer]:
+                - generic [ref=e230]: D2
+              - button "下层逆时针 90°" [ref=e231] [cursor=pointer]:
+                - generic [ref=e232]: D'
+                - generic:
+                  - generic:
+                    - generic: ⇧
+                    - generic: X
+          - generic [ref=e233]:
+            - generic [ref=e234]:
+              - generic [ref=e235]: L
+              - generic [ref=e236]: 左层
+            - generic [ref=e237]:
+              - button "左层顺时针 90°" [ref=e238] [cursor=pointer]:
+                - generic [ref=e239]: L
+                - generic: A
+              - button "左层180°" [ref=e240] [cursor=pointer]:
+                - generic [ref=e241]: L2
+              - button "左层逆时针 90°" [ref=e242] [cursor=pointer]:
+                - generic [ref=e243]: L'
+                - generic:
+                  - generic:
+                    - generic: ⇧
+                    - generic: A
+          - generic [ref=e244]:
+            - generic [ref=e245]:
+              - generic [ref=e246]: B
+              - generic [ref=e247]: 后层
+            - generic [ref=e248]:
+              - button "后层顺时针 90°" [ref=e249] [cursor=pointer]:
+                - generic [ref=e250]: B
+                - generic: Q
+              - button "后层180°" [ref=e251] [cursor=pointer]:
+                - generic [ref=e252]: B2
+              - button "后层逆时针 90°" [ref=e253] [cursor=pointer]:
+                - generic [ref=e254]: B'
+                - generic:
+                  - generic:
+                    - generic: ⇧
+                    - generic: Q
+    - complementary "观察数据与遥测" [ref=e255]:
+      - region "观察数据" [ref=e256]:
+        - generic [ref=e257]:
+          - heading "观察数据" [level=2] [ref=e258]
+          - button "run-mvphsovr-2:o0" [ref=e260] [cursor=pointer]
+        - generic [ref=e264]:
+          - figure "F · green" [ref=e265]:
+            - generic [ref=e267]:
+              - generic "F 面色" [ref=e268]
+              - generic "F 面色" [ref=e269]
+              - generic "F 面色" [ref=e270]
+              - generic "U 面色" [ref=e271]
+              - generic "D 面色" [ref=e272]: F F
+              - generic "B 面色" [ref=e273]
+              - generic "R 面色" [ref=e274]
+              - generic "B 面色" [ref=e275]
+              - generic "F 面色" [ref=e276]
+          - paragraph [ref=e277]: 已授权 1 / 6 面。未授权面不返回数据，不是空值。
+      - region "操作日志" [ref=e278]:
+        - generic [ref=e279]:
+          - heading "操作日志" [level=2] [ref=e280]
+          - generic [ref=e281]: HTM
+        - generic [ref=e282]:
+          - generic [ref=e283]: 还没有操作记录
+          - generic [ref=e284]: 按键盘或点击下方按钮开始
+        - log [ref=e285]
+      - region "历史运行" [ref=e287]:
+        - generic [ref=e288]:
+          - heading "历史运行" [level=2] [ref=e289]
+          - generic [ref=e290]: 最近 0 条
+        - paragraph [ref=e292]: 还没有运行记录。创建第一个挑战后，这里会按时间倒序列出结果。
+  - status [ref=e293]: 正在初始化

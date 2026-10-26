@@ -25,6 +25,7 @@ export class ChallengePanel {
   private readonly timerEl: HTMLElement;
   private readonly timerInt: HTMLElement;
   private readonly timerFrac: HTMLElement;
+  private readonly timerLabel: HTMLElement;
   private readonly countdownFill: HTMLElement;
   private readonly countdown: HTMLElement;
   private readonly idValue: HTMLElement;
@@ -58,13 +59,17 @@ export class ChallengePanel {
     this.timerEl.className = 'timer';
     this.timerEl.setAttribute('aria-live', 'off');
     this.timerEl.setAttribute('role', 'timer');
+    // 有限时模式这块表显示的是「剩余」，不限时显示「已用」——标签必须显式写出来
+    this.timerLabel = document.createElement('span');
+    this.timerLabel.className = 'timer__label';
+    this.timerLabel.hidden = true;
     this.timerInt = document.createElement('span');
     this.timerInt.className = 'timer__int';
     this.timerInt.textContent = '0:00';
     this.timerFrac = document.createElement('span');
     this.timerFrac.className = 'timer__frac';
     this.timerFrac.textContent = '.00';
-    this.timerEl.append(this.timerInt, this.timerFrac);
+    this.timerEl.append(this.timerLabel, this.timerInt, this.timerFrac);
 
     this.countdown = document.createElement('div');
     this.countdown.className = 'countdown';
@@ -175,7 +180,11 @@ export class ChallengePanel {
       remainingMs: view.remainingMs,
       hasLimit: view.timeLimitMs !== null,
     });
-    const shown = view.timeLimitMs !== null ? view.remainingMs : view.elapsedMs;
+    const limited = view.timeLimitMs !== null;
+    const shown = limited ? view.remainingMs : view.elapsedMs;
+    this.timerLabel.hidden = !limited;
+    this.timerLabel.textContent = limited ? '剩余' : '';
+    this.timerEl.setAttribute('aria-label', limited ? '剩余时间' : '已用时间');
     const parts = clockParts(shown);
     this.timerEl.dataset.tone = tone;
     this.timerInt.textContent = parts.int;

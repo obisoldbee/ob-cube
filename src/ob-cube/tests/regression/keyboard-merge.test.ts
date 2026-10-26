@@ -80,6 +80,18 @@ describe('R04 双击保留宽转层集合', () => {
     expect(moves[0]?.layer_set).toEqual([1, 2]);
   });
 
+  it('方向键插入后不再归并（R2-03 / T06 的键盘侧）', () => {
+    const { controller, turns } = harness();
+    press('KeyD');
+    press('ArrowLeft');
+    press('KeyD');
+    controller.detach(window);
+    expect(turns).toHaveLength(2);
+    expect(turns[0]?.merged).toBe(false);
+    // 第二次按键是一次全新的意图，不能被上一次的按键语境并掉
+    expect(turns[1]?.merged).toBe(false);
+  });
+
   it('超出归并窗口后退化为普通外层转（前缀不粘手）', () => {
     const { controller, turns } = harness();
     press('Digit2');

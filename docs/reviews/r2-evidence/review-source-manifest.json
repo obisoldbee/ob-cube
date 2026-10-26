@@ -1,0 +1,95 @@
+{
+  "review_commit": "2e03f8aee8bb44623b647037c58afeeebdc41c05",
+  "baseline_commit": "c6236e2817394ff30fca92c083f79de4ff578ef3",
+  "fix_commit": "02ace80c34544b5e42740dffd921fbfba5b51fdc",
+  "attachment": {
+    "name": "粘贴的文本 (1)(7).txt",
+    "sha256": "bc25735910e1542627c25012a3b3334cb4419742e87a578b6269fc09f6c113a3"
+  },
+  "source_files": [
+    {
+      "id": "S01",
+      "path": "src/ob-cube/src/challenge/session.ts",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/src/ob-cube/src/challenge/session.ts"
+    },
+    {
+      "id": "S02",
+      "path": "src/ob-cube/src/agent/index.ts",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/src/ob-cube/src/agent/index.ts"
+    },
+    {
+      "id": "S03",
+      "path": "src/ob-cube/src/wiring/index.ts",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/src/ob-cube/src/wiring/index.ts"
+    },
+    {
+      "id": "S04",
+      "path": "src/ob-cube/src/ui/keyboard.ts",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/src/ob-cube/src/ui/keyboard.ts"
+    },
+    {
+      "id": "S05",
+      "path": "src/ob-cube/src/services/history.ts",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/src/ob-cube/src/services/history.ts"
+    },
+    {
+      "id": "S06",
+      "path": "src/ob-cube/src/ui/panels/result-panel.ts",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/src/ob-cube/src/ui/panels/result-panel.ts"
+    },
+    {
+      "id": "S07",
+      "path": "src/ob-cube/src/ui/panels/challenge-panel.ts",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/src/ob-cube/src/ui/panels/challenge-panel.ts"
+    },
+    {
+      "id": "S08",
+      "path": "src/ob-cube/src/ui/shell.ts",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/src/ob-cube/src/ui/shell.ts"
+    },
+    {
+      "id": "S09",
+      "path": "src/ob-cube/src/engine/notation.ts",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/src/ob-cube/src/engine/notation.ts"
+    },
+    {
+      "id": "S10",
+      "path": "src/ob-cube/tests/regression/review-2026-10-26.test.ts",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/src/ob-cube/tests/regression/review-2026-10-26.test.ts"
+    },
+    {
+      "id": "S11",
+      "path": "src/ob-cube/tests/regression/keyboard-merge.test.ts",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/src/ob-cube/tests/regression/keyboard-merge.test.ts"
+    },
+    {
+      "id": "S12",
+      "path": "docs/decisions/2026-10-26-review-fixes-ruling.md",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/docs/decisions/2026-10-26-review-fixes-ruling.md"
+    },
+    {
+      "id": "S13",
+      "path": "docs/decisions/OPEN-DECISIONS.md",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/docs/decisions/OPEN-DECISIONS.md"
+    },
+    {
+      "id": "S14",
+      "path": "docs/reports/2026-10-26-review-fix-report.md",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/docs/reports/2026-10-26-review-fix-report.md"
+    },
+    {
+      "id": "S15",
+      "path": "docs/specs/prd/07-agent-api.md",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/docs/specs/prd/07-agent-api.md"
+    },
+    {
+      "id": "S16",
+      "path": "src/ob-cube/src/render/scene.ts",
+      "url": "https://github.com/obisoldbee/ob-cube/blob/2e03f8aee8bb44623b647037c58afeeebdc41c05/src/ob-cube/src/render/scene.ts"
+    }
+  ],
+  "repository_tests_executed": false,
+  "browser_tests_executed": false,
+  "isolated_probes_executed": 8,
+  "repository_modified": false
+}

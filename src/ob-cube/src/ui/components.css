@@ -392,6 +392,21 @@
   color: var(--fg-2);
 }
 
+/* 有限时模式大计时器显示的是「剩余」而不是「已用」——标签必须常驻，
+   否则同一块表在限时/不限时两种模式下含义不同（评审 §5）。 */
+.timer__label {
+  margin-right: var(--space-1);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-emphasize);
+  color: var(--fg-2);
+  letter-spacing: var(--tracking-caps);
+}
+
+.timer__label[hidden] {
+  display: none;
+}
+
 .timer[data-tone='warning'] {
   color: var(--timer-fg-warning);
 }

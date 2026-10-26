@@ -133,7 +133,7 @@ export class ResultPanel {
     grid.className = 'metrics';
     const compare = view.compareElapsedMs;
     grid.append(
-      this.metric('总耗时', formatElapsed(view.elapsedMs), 's', compare === null ? null : `同题面中位 ${formatElapsed(compare)}`),
+      this.metric('总耗时', formatElapsed(view.elapsedMs), 's', compare === null ? null : `同题面中位总耗时 ${formatElapsed(compare)}`),
       // 口径名必须标在标签上（PRD §7.1：R2 算 1 步是反直觉点，不能让用户猜）
       this.metric('总步数 · HTM', String(view.moveCount), '步', null),
       this.metric('每秒步数', formatTps(view.moveCount, view.elapsedMs), 'TPS', null),
@@ -247,13 +247,22 @@ export class ResultPanel {
 
     const row = document.createElement('div');
     row.className = 'result__actions';
-    const secondary: [string, () => void][] = [
-      ['同题面重跑', () => this.host.onRerun()],
-      ['导出 JSON', () => this.host.onExport()],
-      ['再挑战一次', () => this.host.onRetry()],
-      // §9.1「复制题面指纹」：指纹由 wiring 从结果对象注入，面板不自算
-      ['复制指纹', () => this.host.onCopyFingerprint(view.fingerprint)],
-    ];
+    // 主按钮已经是「同题面重跑」时不再在次按钮里重复一次（评审 §5：同一动作两个
+    // 入口并排出现，只是噪音，不是冗余保险）
+    const secondary: [string, () => void][] =
+      verdict.primary === 'rerun'
+        ? [
+            ['导出 JSON', () => this.host.onExport()],
+            ['再挑战一次', () => this.host.onRetry()],
+            ['复制指纹', () => this.host.onCopyFingerprint(view.fingerprint)],
+          ]
+        : [
+            ['同题面重跑', () => this.host.onRerun()],
+            ['导出 JSON', () => this.host.onExport()],
+            ['再挑战一次', () => this.host.onRetry()],
+            // §9.1「复制题面指纹」：指纹由 wiring 从结果对象注入，面板不自算
+            ['复制指纹', () => this.host.onCopyFingerprint(view.fingerprint)],
+          ];
     for (const [label, handler] of secondary) {
       const btn = document.createElement('button');
       btn.type = 'button';

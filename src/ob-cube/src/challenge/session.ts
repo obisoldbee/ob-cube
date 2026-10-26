@@ -111,6 +111,21 @@ function opposite(face: FaceId): FaceId {
   return faceOfNormal(negate(FACE_GEOMETRY[face].normal));
 }
 
+/**
+ * 深冻结公开返回值（PRD §7.1「返回对象冻结，调用方不得改写」）。
+ *
+ * 只冻根对象不够：`face_colors` / `visible_faces` / `layer_set` 都在嵌套里，
+ * 改一个嵌套格子就会污染内部缓存与幂等比较——探针 P08 用一个 `result.move = 'U'`
+ * 就把 opCache 里的记录改掉了，随后同一 op_id 的重试从"命中"变成"冲突"。
+ */
+function deepFreeze<T>(value: T): T {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value;
+  Object.freeze(value);
+  const record = value as Record<string, unknown>;
+  for (const key of Object.keys(record)) deepFreeze(record[key]);
+  return value;
+}
+
 export class ChallengeSession {
   private puzzle: PuzzleRecord;
   private state: CubeState;
@@ -126,11 +141,24 @@ export class ChallengeSession {
   private solvedAt: number | null = null;
   private readonly clock: Clock;
   private readonly events: RunEvent[] = [];
+  /**
+   * 事件序号使用独立递增计数，**不依赖可删除数组的长度**。
+   * 归并会撤掉半成品事件；若用 `events.length + 1` 编号，撤掉后新事件会重用
+   * 已被后面的 view 事件占用的序号（R2-03：seq 变成 [1,3,3]）。
+   * 撤事件只留下序号空洞——空洞是可解释的，重号不是。
+   */
+  private eventSeq = 0;
   private view: ViewState = { ...DEFAULT_VIEW };
   private obsSeq = 0;
   private observeCount = 0;
-  /** after_move 档：上次成功观察时的步数。−1 = 尚未观察过（开局允许一次） */
-  private lastObservedMoveCount = -1;
+  /**
+   * 观察门控的版本基准。用**状态版本**而不是步数：归并把两步折成一步后
+   * `moveCount` 不变，若按步数判断，新物理状态会被误判为"已经观察过"（R2-03）。
+   * 每次真正改变魔方状态（含归并出的 180°）都 +1。
+   */
+  private stateRevision = 0;
+  /** 上次成功交付观察时的状态版本。−1 = 尚未交付过（开局允许一次） */
+  private lastObservedRevision = -1;
   private attemptsLeft = SUBMIT_ATTEMPTS;
   private runId: string;
   private readonly opCache = new Map<string, MoveResult>();
@@ -305,9 +333,11 @@ export class ChallengeSession {
     this.pauseCount = 0;
     this.solvedAt = null;
     this.events.length = 0;
+    this.eventSeq = 0;
     this.obsSeq = 0;
     this.observeCount = 0;
-    this.lastObservedMoveCount = -1;
+    this.stateRevision = 0;
+    this.lastObservedRevision = -1;
     this.attemptsLeft = SUBMIT_ATTEMPTS;
     this.opCache.clear();
     this.rateCount = 0;
@@ -335,6 +365,7 @@ export class ChallengeSession {
 
   pause(): void {
     if (this.statusValue !== 'running') return;
+    this.closeMergeWindow();
     this.pausedAt = this.clock();
     this.pauseCount += 1;
     this.statusValue = 'paused';
@@ -343,6 +374,7 @@ export class ChallengeSession {
 
   resume(): void {
     if (this.statusValue !== 'paused') return;
+    this.closeMergeWindow();
     if (this.pausedAt !== null) {
       this.pausedTotalMs += Math.max(0, this.clock() - this.pausedAt);
       this.pausedAt = null;
@@ -354,6 +386,7 @@ export class ChallengeSession {
   abandon(note?: string): void {
     this.guardActiveChallenge();
     if (isEnded(this.statusValue)) return;
+    this.closeMergeWindow();
     this.finish('ended_abandoned', note ?? '用户主动放弃');
   }
 
@@ -446,15 +479,18 @@ export class ChallengeSession {
     return [view.up, view.front, right];
   }
 
-  /** after_move 档：只有转动过、且本次转动后还没观察过时才放行。 */
+  /** after_move 档：状态变过、且这次变化后还没交付过观察时才放行。 */
   private observationUnlocked(): boolean {
     if (this.observationMode !== 'after_move') return true;
-    return this.lastObservedMoveCount !== this.moveCount;
+    return this.lastObservedRevision !== this.stateRevision;
   }
 
   observe(): Observation {
     this.tick();
     this.guardStarted();
+    // 观察是一次可见动作，先切断归并窗口；若正卡在步数耗尽的推迟判定上，
+    // 这一步就会结算，下面的 guardNotEnded 会给出真实原因（R2-03）。
+    this.closeMergeWindow();
     this.guardNotEnded();
     this.guardNotPaused();
     if (!this.observationUnlocked()) {
@@ -479,14 +515,30 @@ export class ChallengeSession {
   /**
    * 只读投影，不推进 obsSeq、不计入观察预算。UI 用它刷新右栏。
    *
-   * restricted 档只能读「已交付的那份快照」：若这里直接读实时状态，
-   * 观察面板就成了绕过 24 次预算的免费通道（预算用尽后仍能看到最新布局）。
+   * **有门控的档只能读「已交付的那份快照」**（restricted 的预算、after_move 的
+   * 「转动后开放一次」）。若这里直接读实时状态：
+   *   - restricted：面板成为绕过 24 次预算的免费通道；
+   *   - after_move：面板用旧编号展示新状态（R2-02 / 探针 P02），
+   *     显式观察的规则在界面上等于不存在。
+   * 完整观察 / 三面 / 单面三档没有"何时能看"的限制，实时投影即是应得内容。
    */
   peekObservation(): Observation {
-    if (this.observationMode === 'restricted') {
+    if (this.hasObservationGate()) {
       return this.lastDelivered ?? this.buildLockedObservation();
     }
-    return this.buildObservation(this.observationIdOf(this.obsSeq));
+    // 无门控档的投影每帧都要重建（`sync()` 在 rAF 循环里），因此不深冻结：
+    // 它不离开本进程、也不进缓存，冻结只会把开销摊到每一个渲染帧。
+    return this.buildObservation(this.observationIdOf(this.obsSeq), false);
+  }
+
+  /** 该档是否存在「何时/能否交付」的门控 */
+  private hasObservationGate(): boolean {
+    return this.observationMode === 'restricted' || this.observationMode === 'after_move';
+  }
+
+  /** 该档是否需要参与者显式取用观察（界面据此显示「获取观察」入口） */
+  observationGateActive(): boolean {
+    return this.hasObservationGate();
   }
 
   /** 观察预算是否还有余额（只有 restricted 有预算） */
@@ -494,9 +546,15 @@ export class ChallengeSession {
     return !(this.observationMode === 'restricted' && this.deliveryCount >= RESTRICTED_OBSERVE_BUDGET);
   }
 
+  /** 剩余观察预算（无预算档为 null），供进度与界面显示 */
+  observeBudgetLeft(): number | null {
+    if (this.observationMode !== 'restricted') return null;
+    return Math.max(0, RESTRICTED_OBSERVE_BUDGET - this.deliveryCount);
+  }
+
   /**
    * **唯一的观察交付点**。一次交付 = 消耗一次预算（restricted）+ 编号 +1 +
-   * 刷新「已观察步数」（after_move 的一次机会就此用掉）。
+   * 记录「已观察到的状态版本」（after_move 的一次机会就此用掉）。
    *
    * 显式 `observe()` 与 `applyMove` 的 `next_observation` 走同一条路径——旧实现里
    * `applyMove` 直接调用 `buildObservation()`，既不吃预算也不换编号，于是
@@ -507,7 +565,7 @@ export class ChallengeSession {
     if (!this.canDeliverObservation()) return null;
     this.obsSeq += 1;
     this.deliveryCount += 1;
-    this.lastObservedMoveCount = this.moveCount;
+    this.lastObservedRevision = this.stateRevision;
     const observation = this.buildObservation(this.observationIdOf(this.obsSeq));
     this.lastObservation = observation;
     this.lastDelivered = observation;
@@ -529,7 +587,7 @@ export class ChallengeSession {
 
   /** 无授权交付时的投影：键齐全、面为空，明确表示「当前没有可用的观察」 */
   private buildLockedObservation(): Observation {
-    return {
+    return deepFreeze({
       challenge_id: this.puzzle.challenge_id,
       cube_size: this.size,
       observation_id: this.observationIdOf(this.obsSeq),
@@ -541,24 +599,28 @@ export class ChallengeSession {
       remaining_ms: this.remainingMs(),
       move_count: this.moveCount,
       status: this.statusValue,
-    };
+    });
   }
 
   private allowedActions(): AllowedActions {
     return {
-      notation: moveCatalogNotations(this.size),
+      // 计法目录是跨会话共享的缓存数组，这里复制一份：返回值会被冻结，
+      // 冻结共享数组会影响其它会话（也会让"只读"变成事实上的全局冻结）。
+      notation: [...moveCatalogNotations(this.size)],
       layer_indices: Array.from({ length: this.size }, (_, i) => i + 1),
       can_rotate_view: true,
     };
   }
 
-  private buildObservation(observationId: string): Observation {
+  private buildObservation(observationId: string, frozen = true): Observation {
     const visible = this.visibleFaces();
     const faceColors: Partial<Record<FaceId, FaceGrid>> = {};
     for (const face of visible) {
       faceColors[face] = this.gridOf(face);
     }
-    return {
+    // 冻结在创建时完成：观察会被 lastDelivered 持有、面板与 API 共用，
+    // 调用方改一个嵌套格子就等于改掉内部快照（R2-08 / 探针 P08）。
+    const observation: Observation = {
       challenge_id: this.puzzle.challenge_id,
       cube_size: this.size,
       observation_id: observationId,
@@ -571,6 +633,7 @@ export class ChallengeSession {
       move_count: this.moveCount,
       status: this.statusValue,
     };
+    return frozen ? deepFreeze(observation) : observation;
   }
 
   private gridOf(face: FaceId): FaceGrid {
@@ -593,6 +656,8 @@ export class ChallengeSession {
     if (this.statusValue === 'idle') {
       throw new CubeError('E_CHALLENGE_NOT_STARTED', '挑战尚未创建', '先创建挑战');
     }
+    // 换视角会切断双击归并（R2-03）；若正卡在步数耗尽的推迟判定上，这里就结算
+    this.closeMergeWindow();
     this.guardNotEnded();
     this.guardNotPaused();
     if (areCollinear(next.up, next.front)) {
@@ -607,6 +672,7 @@ export class ChallengeSession {
   }
 
   stepView(direction: 'left' | 'right' | 'up' | 'down'): ViewState {
+    this.closeMergeWindow();
     this.guardNotEnded();
     this.guardNotPaused();
     const { up, front } = this.view;
@@ -649,13 +715,17 @@ export class ChallengeSession {
     if (opId) {
       const cached = this.opCache.get(opId);
       if (cached) {
-        if (cached.move !== raw) {
+        // 幂等比较用**规范化后的记法**，不是原始输入（R2-04）：
+        // `2Rw` 与 `Rw` 是同一次物理操作，重试必须命中，否则相同请求被判冲突。
+        // parseMove 是纯函数，这里解析不会改状态；非法输入仍抛自己的记法错误。
+        const normalized = parseMove(raw, this.size).normalized;
+        if (cached.move !== normalized) {
           throw new CubeError('E_OP_ID_CONFLICT', `op_id ${opId} 已绑定 ${cached.move}`, '同一个 op_id 不允许两种含义');
         }
-        return { ...cached, deduplicated: true };
+        return deepFreeze({ ...cached, deduplicated: true });
       }
     }
-    this.resolvePendingLimitNow();
+    this.closeMergeWindow();
     this.guardNotEnded();
     if (this.statusValue === 'paused') {
       throw new CubeError('E_CHALLENGE_PAUSED', '挑战已暂停，计时已冻结', '先继续挑战');
@@ -716,6 +786,10 @@ export class ChallengeSession {
       // 只有键盘的 90° 才可能被下一次同键按下折成 X2，因而也只有它需要推迟判负。
       deferLimit: this.mergeDoubleTap && channel === 'keyboard' && amount !== 2,
       trackMerge: amount !== 2 ? { face, layers } : null,
+      // 人类通道（按钮/键盘/记法框）一律不自动交付：三个入口必须同规则。
+      // 旧实现里按钮与键盘自动交付、记法框传 deliver=false，同一次物理动作的
+      // 预算消耗随入口变化（R2-02）。人类要新观察就显式点「获取观察」。
+      deliver: false,
     });
   }
 
@@ -737,15 +811,17 @@ export class ChallengeSession {
    */
   private commitMerged(face: FaceId, layers: readonly number[], amount: 1 | 3, channel: InputChannel): MoveResult {
     const turn = this.lastTurn;
-    if (turn === null) {
-      // canMerge 保证不可达；防御式回落到普通提交，不制造半个归并状态。
+    const index = turn === null ? -1 : this.events.lastIndexOf(turn.event);
+    // 防御二道：要撤的事件必须仍是最后一条。若中间已经插入了别的可见事件
+    // （视角 / 观察 / 暂停），归并会让数组顺序与时间顺序打架（R2-03 的重复序号），
+    // 此时放弃归并、按一次普通 90° 提交——宁可少并一次，也不产出坏时间线。
+    if (turn === null || index < 0 || index !== this.events.length - 1) {
       const notation = describeMove({ size: this.size, face, layers, amount });
       return this.commit(parseMove(notation, this.size), null, channel, null, {});
     }
     this.pendingLimitDeadline = null;
     this.state = turn.before;
-    const index = this.events.lastIndexOf(turn.event);
-    if (index >= 0) this.events.splice(index, 1);
+    this.events.splice(index, 1);
     // 半成品事件的 agentMoves 增量一并撤回，归并后只算一步。
     if (turn.event.input_channel === 'api') this.agentMoves = Math.max(0, this.agentMoves - 1);
     this.lastTurn = null;
@@ -786,6 +862,8 @@ export class ChallengeSession {
     const before = this.state;
     const from = fingerprintState(before);
     this.state = engineApplyMove(before, spec);
+    // 状态版本随每次真实转动递增（归并出的 180° 也只算一次真实的落定变化）
+    this.stateRevision += 1;
     const to = fingerprintState(this.state);
     const protocolLayers = protocolLayerSet(spec);
     const event = this.pushEvent('move', spec.normalized, true, null);
@@ -851,7 +929,17 @@ export class ChallengeSession {
     } else {
       this.lastTurn = null;
     }
-    return result;
+    return deepFreeze(result);
+  }
+
+  /**
+   * 关闭归并窗口：任何与转动不同的可见动作（换视角 / 观察 / 暂停 / 提交）之后，
+   * 上一次按键不再可能与下一次按键合并。若当时正卡在步数耗尽的推迟判定上，
+   * 窗口一关就没有"第二次按键"可等，立刻按步数耗尽结算。
+   */
+  private closeMergeWindow(): void {
+    this.lastTurn = null;
+    this.resolvePendingLimitNow();
   }
 
   /** 归并窗口内不判负：等 tick() 到点再结算（窗口内没有第二次按键就是真的超步）。 */
@@ -888,13 +976,14 @@ export class ChallengeSession {
     this.guardStarted();
     this.guardNotEnded();
     this.guardNotPaused();
+    this.closeMergeWindow();
     const verdict = evaluateSolved(this.state);
     if (verdict.solved) {
       this.statusValue = 'ended_solved';
       this.endedAt = this.clock();
       this.pushEvent('submit', null, true, null);
       this.pushEvent('end', null, true, null);
-      this.lastSubmit = { accepted: true, status: this.statusValue, reason: note ?? null, mismatch: null };
+      this.lastSubmit = deepFreeze({ accepted: true, status: this.statusValue, reason: note ?? null, mismatch: null });
     } else {
       this.attemptsLeft -= 1;
       const mismatch = {
@@ -905,12 +994,12 @@ export class ChallengeSession {
       if (this.attemptsLeft <= 0) {
         this.finish('ended_invalid', '连续提交未还原达到上限');
       }
-      this.lastSubmit = {
+      this.lastSubmit = deepFreeze({
         accepted: false,
         status: this.statusValue,
         reason: '魔方尚未还原',
         mismatch,
-      };
+      });
       if (!isEnded(this.statusValue)) {
         throw new CubeError('E_NOT_SOLVED', '魔方尚未还原', `还有 ${verdict.wrongStickers} 张贴纸未归位`);
       }
@@ -925,7 +1014,9 @@ export class ChallengeSession {
     const metrics = this.moveMetrics();
     const exported = this.exportedEvents();
     const dropped = this.events.length - exported.length;
-    return {
+    // 深冻结：events 里的元素与内部事件是同一批对象，调用方改一条就等于改掉
+    // 内部日志与后续历史落盘（R2-08）。运行已结束，冻结不会妨碍任何后续写入。
+    return deepFreeze({
       rules: this.rules,
       status: this.statusValue,
       solved: this.statusValue === 'ended_solved',
@@ -950,7 +1041,7 @@ export class ChallengeSession {
       scramble_fingerprint: this.puzzle.scramble_fingerprint,
       gen_algorithm_version: this.puzzle.generation.algorithm_version,
       ...(dropped > 0 ? { events_truncated: true, events_dropped: dropped } : {}),
-    };
+    });
   }
 
   /**
@@ -989,9 +1080,12 @@ export class ChallengeSession {
       remaining_ms: this.remainingMs(),
       move_limit: this.moveLimit,
       is_solved: evaluateSolved(this.state).solved,
+      // R2-07：许可必须同时包含预算条件。旧实现只查 after_move 的步数门控，
+      // restricted 第 24 次交付后仍报 true，紧接着 observe() 却抛预算耗尽。
       observation_allowed:
         (this.statusValue === 'running' || this.statusValue === 'solved_pending') &&
-        this.observationUnlocked(),
+        this.observationUnlocked() &&
+        this.canDeliverObservation(),
     };
   }
 
@@ -999,7 +1093,8 @@ export class ChallengeSession {
 
   private pushEvent(type: RunEvent['type'], move: string | null, ok: boolean, errorCode: string | null): RunEvent {
     const event: RunEvent = {
-      seq: this.events.length + 1,
+      // 独立递增：归并撤事件只留空洞，不重号（R2-03）
+      seq: (this.eventSeq += 1),
       type,
       at_ms: this.elapsedMs(),
       move,
@@ -1082,10 +1177,10 @@ export function viewAtStep(
   let view: ViewState = { ...initial };
   let moves = 0;
   for (const event of events) {
-    // 已到目标步数就停：第 step 步**之后**的视角变化不属于这一刻。
-    if (moves >= step) break;
     if (event.type === 'move' && event.ok) {
       moves += 1;
+      // 第 step 步**之后**的事件不属于这一刻；step=0 仍会吃掉开始前的视角选择
+      if (moves > step) break;
       continue;
     }
     if (event.type === 'view' && event.view_after) view = event.view_after;

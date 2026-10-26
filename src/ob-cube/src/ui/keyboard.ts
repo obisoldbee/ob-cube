@@ -185,6 +185,11 @@ export class KeyboardController {
       return;
     }
 
+    // 任何非面键的按键都会打断双击语境（R2-03）：换视角、开始、前缀、帮助、F2
+    // 之后，上一次按键不再属于"同一组双击"。会话层也会在 view/observe/pause 时
+    // 关闭归并窗口，这里同步清掉是为了不让 `merged` 标记先骗过上层。
+    if (!LETTER_CODES[event.code]) this.last = null;
+
     // 物理键一律看 code：key 随输入法/布局漂移（测试环境也常只给 code）
     if (event.code === 'Escape') {
       event.preventDefault();

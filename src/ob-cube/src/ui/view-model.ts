@@ -68,6 +68,10 @@ export interface ObservationView {
   readonly locked: boolean;
   /** 锁定原因（未开始 / 已暂停 / 本档尚未交付观察），驱动锁定态提示文案；未锁定为 null */
   readonly lockReason: 'not-started' | 'paused' | 'no-observation' | null;
+  /** 当前是否允许「获取观察」：有门控的档（after_move / restricted）需要显式取用 */
+  readonly canObserve: boolean;
+  /** 受限观察剩余次数；无预算档为 null */
+  readonly budgetLeft: number | null;
   readonly observationId: string | null;
   readonly visibleFaces: readonly FaceId[];
 }

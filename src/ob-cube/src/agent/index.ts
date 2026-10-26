@@ -45,13 +45,14 @@ export function createCubeAgent(session: ChallengeSession, onMutate?: () => void
       };
     },
     observe(_opts?: { requested_faces?: string[] }) {
-      // observe 内部的 tick 可能把超时结算掉（Agent 常轮询 observe 而不是 getProgress）。
-      // 只读方法本不触发宿主回调，但状态翻转必须让 UI 同帧跟上（AC-28）。
-      const before = session.status;
+      // 一次成功观察同样改变可见状态（新编号、新快照、预算 -1），必须无条件通知宿主。
+      // 旧实现只在 status 翻转时才回调，于是 restricted 档里 Agent 拿到了 o1，
+      // 界面还停在「尚未获得观察」，直到下一次变更操作（R2-02 / 探针 P01）。
+      // 失败路径不回调——异常本身不产生任何可见变化。
       try {
         return session.observe();
       } finally {
-        if (session.status !== before) after();
+        after();
       }
     },
     rotateView(req: ViewState) {

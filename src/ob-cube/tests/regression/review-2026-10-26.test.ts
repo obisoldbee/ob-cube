@@ -253,27 +253,31 @@ describe('R09 同题连续运行两次', () => {
 });
 
 describe('R10 多次改变视角后的观察者回放', () => {
-  it('每一步恢复当时实际获准看到的三个面', () => {
+  it('每一步恢复当时实际使用的朝向，包括开始前的视角选择（R2-06 / T11）', () => {
     const { session } = makeSession({ size: 3, seed: 'r10', observationMode: 'three_faces' });
+    // `ready` 态换视角是合法且会落事件的：第 0 步必须恢复它，而不是默认 U/F
+    session.rotateView({ up: 'U', front: 'R' });
     session.start();
     const expected: string[][] = [session.visibleFaces().slice().sort()];
 
     session.applyMoveNotation('R');
+    session.rotateView({ up: 'U', front: 'F' }); // 视角在下一步之前生效
     expected.push(session.visibleFaces().slice().sort());
-    session.rotateView({ up: 'U', front: 'R' });
+
     session.applyMoveNotation('U');
-    expected.push(session.visibleFaces().slice().sort());
     session.rotateView({ up: 'F', front: 'U' });
+    expected.push(session.visibleFaces().slice().sort());
+
     session.applyMoveNotation('F');
     expected.push(session.visibleFaces().slice().sort());
 
     for (let step = 0; step <= 3; step += 1) {
-      const view = viewAtStep(session.eventLog, step);
-      const faces = session.visibleFacesFor(view).slice().sort();
+      const faces = session.visibleFacesFor(viewAtStep(session.eventLog, step)).slice().sort();
       expect(faces, `step=${step}`).toEqual(expected[step]);
     }
-    // 最后一步的视野与结束时的视野确实不同——用例本身要能区分新旧实现
-    expect(viewAtStep(session.eventLog, 0)).not.toEqual(session.viewOrientation);
+    // 旧实现在第 0 步直接返回默认 U/F（探针 P07）
+    expect(viewAtStep(session.eventLog, 0)).toEqual({ up: 'U', front: 'R' });
+    expect(viewAtStep(session.eventLog, 0)).not.toEqual({ up: 'U', front: 'F' });
   });
 });
 
@@ -325,7 +329,7 @@ describe('R11 保存记录后重载', () => {
 });
 
 describe('R12 同题同时存在成功、放弃、超时记录', () => {
-  it('成功耗时只统计同规则的成功运行，且用还原时刻', () => {
+  it('成功耗时只统计同规则的成功运行，且与结果卡片同口径（R2-05）', () => {
     const base = makeSession({ size: 3, seed: 'r12' });
     base.session.start();
     const template = (() => {
@@ -354,9 +358,10 @@ describe('R12 同题同时存在成功、放弃、超时记录', () => {
       }),
     ];
 
-    // 只有 run-a / run-b 可比 → 中位数 = (1200 + 1800) / 2 = 1500
-    expect(medianSolvedElapsed(records, template.rules)).toBe(1500);
-    expect(medianSolvedElapsed(records, template.rules, 'run-b')).toBe(1200);
+    // 只有 run-a / run-b 可比；口径与卡片主指标同为「总耗时」→ (2000 + 3000) / 2 = 2500。
+    // 若改用还原耗时（1200/1800），卡片与中位数就会再次指向不同终点（R2-05）。
+    expect(medianSolvedElapsed(records, template.rules)).toBe(2500);
+    expect(medianSolvedElapsed(records, template.rules, 'run-b')).toBe(2000);
     expect(medianSolvedElapsed(records, { ...template.rules, move_limit: 3 })).toBeNull();
   });
 });

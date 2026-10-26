@@ -15,6 +15,8 @@ import { icon } from '../icons';
 
 export interface ObservationPanelHost {
   onCopyObservationId(text: string): void;
+  /** 显式获取一份观察：有门控的档（after_move / restricted）靠它交付 */
+  onObserve(): void;
 }
 
 const COLOR_FACE: Readonly<Record<StickerColor, FaceId>> = {
@@ -32,6 +34,7 @@ export class ObservationPanel {
   readonly el: HTMLElement;
   private readonly body: HTMLElement;
   private readonly meta: HTMLElement;
+  private readonly observeButton: HTMLButtonElement;
 
   constructor(private readonly host: ObservationPanelHost) {
     this.el = document.createElement('section');
@@ -49,11 +52,30 @@ export class ObservationPanel {
 
     this.body = document.createElement('div');
     this.body.className = 'facelet-grids';
-    this.el.append(head, this.body);
+
+    // 显式取用入口：after_move「转动后开放一次」、restricted 的 24 次预算，
+    // 都必须由参与者主动取，不能靠面板偷偷读到实时状态（R2-02）。
+    const foot = document.createElement('div');
+    foot.className = 'panel__foot';
+    this.observeButton = document.createElement('button');
+    this.observeButton.type = 'button';
+    this.observeButton.className = 'btn btn--sm';
+    this.observeButton.append(icon('eye', 16), document.createTextNode('获取观察'));
+    this.observeButton.hidden = true;
+    this.observeButton.addEventListener('click', () => this.host.onObserve());
+    foot.append(this.observeButton);
+
+    this.el.append(head, this.body, foot);
   }
 
   update(view: ObservationView): void {
     this.meta.replaceChildren();
+    if (view.budgetLeft !== null) {
+      const budget = document.createElement('span');
+      budget.className = 'datarow__v';
+      budget.textContent = `观察预算 ${view.budgetLeft}`;
+      this.meta.append(budget);
+    }
     if (view.observationId) {
       const chip = document.createElement('button');
       chip.type = 'button';
@@ -63,6 +85,7 @@ export class ObservationPanel {
       chip.addEventListener('click', () => this.host.onCopyObservationId(view.observationId!));
       this.meta.append(chip);
     }
+    this.observeButton.hidden = !view.canObserve;
 
     if (view.locked) {
       this.body.replaceChildren(this.lockedState(view.lockReason));

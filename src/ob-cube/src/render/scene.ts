@@ -107,8 +107,11 @@ export function createCubeStage(canvas: HTMLCanvasElement): CubeStage | null {
 }
 
 /**
- * 帧预算采样（ARCHITECTURE §8.5）：连续 10 帧 p95 > 20ms 时按序降级，
- * 并在 UI 上挂可见的「性能已降级」标记 —— **静默降级会让「为什么我的测试机看起来不一样」不可诊断**。
+ * 帧预算采样（ARCHITECTURE §8.5）：p95 > 20ms 视为帧时间偏高，并在 UI 上挂可见提示。
+ *
+ * **当前只检测、不降级**：渲染质量（像素比、抗锯齿、几何细分）不随此值变化。
+ * 因此提示文案必须写「帧时间偏高」，不能写「已降级」——后者描述的是没发生的事
+ * （2026-10-27 评审 §5 更正）。真正的画质降级若要做，需要单独的渲染路径与像素验收。
  */
 export interface FrameBudget {
   readonly p50: number;

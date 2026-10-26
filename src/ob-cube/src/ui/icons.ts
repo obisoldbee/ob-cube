@@ -13,6 +13,7 @@ import ChevronUp from 'lucide-static/icons/chevron-up.svg?raw';
 import Check from 'lucide-static/icons/check.svg?raw';
 import Clock from 'lucide-static/icons/clock.svg?raw';
 import Copy from 'lucide-static/icons/copy.svg?raw';
+import Eye from 'lucide-static/icons/eye.svg?raw';
 import Home from 'lucide-static/icons/home.svg?raw';
 import Info from 'lucide-static/icons/info.svg?raw';
 import Keyboard from 'lucide-static/icons/keyboard.svg?raw';
@@ -34,6 +35,7 @@ export type IconName =
   | 'check'
   | 'clock'
   | 'copy'
+  | 'eye'
   | 'home'
   | 'info'
   | 'keyboard'
@@ -58,6 +60,7 @@ const RAW: Readonly<Record<IconName, string>> = {
   check: Check,
   clock: Clock,
   copy: Copy,
+  eye: Eye,
   home: Home,
   info: Info,
   keyboard: Keyboard,

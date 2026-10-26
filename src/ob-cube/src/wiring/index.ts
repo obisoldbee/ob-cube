@@ -272,6 +272,21 @@ export function bootstrap(host: HTMLElement): void {
     stage.view.setReveal(session.observationMode === 'full' ? null : session.visibleFaces());
   }
 
+  /**
+   * 人类换视角后的授权面刷新（R2-01）。
+   * 3D 的 reveal 遮罩是一份独立状态：只改 `session.view` 与相机，遮罩仍停在旧朝向，
+   * 于是新进入视野的授权面还是遮蔽色、旧面还留着颜色。面板与画面必须同源。
+   */
+  function refreshAuthorizedFaces(): void {
+    if (replayState !== null) return;
+    if (!stage) {
+      updateNet();
+      return;
+    }
+    applyReveal();
+    stage.view.applyFacelets(session.stateView);
+  }
+
   /** 相机最后被应用到的离散朝向：拖动不改它，避免一次 API 转动就把用户视角拽回去 */
   let appliedView: ViewState = { up: 'U', front: 'F' };
 
@@ -356,11 +371,16 @@ export function bootstrap(host: HTMLElement): void {
    * 都按最后一刻的视野展示，中途转过视角的步骤全部错位（R10）。
    * 现改为按事件顺序累计 `view_after`，恢复每一时刻的真实朝向。
    */
+  /** 回放到当前步的历史朝向：相机与授权面共用这一份取值 */
+  function replayStepView(): ViewState {
+    return viewAtStep(session.eventLog, replayStep);
+  }
+
   function replayVisibleFaces(): readonly FaceId[] {
     if (replayMode !== 'observer') return FACE_ORDER;
     const mode = session.observationMode;
     if (mode === 'full') return FACE_ORDER;
-    return session.visibleFacesFor(viewAtStep(session.eventLog, replayStep));
+    return session.visibleFacesFor(replayStepView());
   }
 
   function gridsOf(state: CubeState): readonly { face: FaceId; grid: ReturnType<typeof toGrid> }[] {
@@ -402,6 +422,9 @@ export function bootstrap(host: HTMLElement): void {
       stage.setDust(false);
       stage.view.setReveal(replayMode === 'observer' ? replayVisibleFaces() : null);
       stage.view.applyFacelets(view);
+      // 只恢复授权面而不恢复相机，恢复出来的面可能正对背面——回放看到的是
+      // 「当前视角 + 历史授权面」的错配（R2-06）。上帝视角保持用户自己拖的机位。
+      if (replayMode === 'observer') setCamera(replayStepView(), false);
     }
     updateNet(view, replayVisibleFaces());
     workspace.updateReplay(replayPanelView(prevState));
@@ -538,20 +561,53 @@ export function bootstrap(host: HTMLElement): void {
     };
   }
 
+  /**
+   * 观察面板视图。
+   *
+   * 「能否获取观察」与「看到哪一份」必须与 API 同一套规则：有门控的档
+   * （after_move / restricted）只显示已交付的快照，并给出显式取用入口；
+   * 否则面板就是绕过交付规则的旁路（R2-02 / 探针 P02）。
+   */
   function observationView(): ObservationView {
+    const budgetLeft = session.observeBudgetLeft();
+    const canObserve = session.observationGateActive();
     if (session.status === 'ready' || session.status === 'idle') {
-      return { faceColors: {}, locked: true, lockReason: 'not-started', observationId: null, visibleFaces: [] };
+      return {
+        faceColors: {},
+        locked: true,
+        lockReason: 'not-started',
+        observationId: null,
+        visibleFaces: [],
+        canObserve: false,
+        budgetLeft,
+      };
     }
     // P7'（PRD §7.2.1）：暂停屏蔽观察——3D 已遮蔽，右栏数据面板不能成为
     // 「暂停慢慢看题面」的旁路，否则遮罩形同虚设。API 侧 observe() 同样返回 PAUSED。
     if (session.status === 'paused') {
-      return { faceColors: {}, locked: true, lockReason: 'paused', observationId: null, visibleFaces: [] };
+      return {
+        faceColors: {},
+        locked: true,
+        lockReason: 'paused',
+        observationId: null,
+        visibleFaces: [],
+        canObserve: false,
+        budgetLeft,
+      };
     }
     const obs = session.peekObservation();
-    // restricted 档在交付过第一份观察之前没有任何授权面：这里必须显式报「未获得观察」，
+    // 有门控的档在交付过第一份观察之前没有任何授权面：这里必须显式报「未获得观察」，
     // 不能靠 faceColors 为空就让面板回落到「开始后可读取」的文案（那是错的场景）。
     if (obs.visible_faces.length === 0) {
-      return { faceColors: {}, locked: true, lockReason: 'no-observation', observationId: null, visibleFaces: [] };
+      return {
+        faceColors: {},
+        locked: true,
+        lockReason: 'no-observation',
+        observationId: null,
+        visibleFaces: [],
+        canObserve,
+        budgetLeft,
+      };
     }
     return {
       faceColors: obs.face_colors,
@@ -559,6 +615,8 @@ export function bootstrap(host: HTMLElement): void {
       lockReason: null,
       observationId: obs.observation_id,
       visibleFaces: obs.visible_faces,
+      canObserve,
+      budgetLeft,
     };
   }
 
@@ -769,6 +827,7 @@ export function bootstrap(host: HTMLElement): void {
   function applyView(view: ViewState): void {
     session.rotateView(view);
     setCamera(view, true);
+    refreshAuthorizedFaces();
   }
 
   function persistConfig(): void {
@@ -880,6 +939,12 @@ export function bootstrap(host: HTMLElement): void {
         markFirstMoveDone();
       });
     },
+    observe() {
+      guard(() => {
+        // 有门控的档（after_move / restricted）必须显式取一份，界面入口在这里落地
+        session.observe();
+      });
+    },
     applyNotation(raw) {
       guard(() => {
         // F16：与按钮/键盘共用会话层的唯一提交点，动画在提交成功后再补。
@@ -914,6 +979,7 @@ export function bootstrap(host: HTMLElement): void {
       guard(() => {
         const next = session.stepView(step);
         setCamera(next, true);
+        refreshAuthorizedFaces();
         trackView('button');
       });
     },
@@ -1190,8 +1256,10 @@ export function bootstrap(host: HTMLElement): void {
         const budget = measureFrameBudget(frameSamples);
         if (budget.degraded !== degraded) {
           degraded = budget.degraded;
+          // 这里只做采样与提示，**没有**降低分辨率或抗锯齿（评审 §5）。
+          // 文案不能说「已降级」——那是没发生的事；说「帧时间偏高」才是实情。
           workspace.setPerformanceNote(
-            degraded ? `性能已降级 · p95 ${budget.p95.toFixed(1)}ms` : null,
+            degraded ? `帧时间偏高 · p95 ${budget.p95.toFixed(1)}ms` : null,
           );
         }
         frameSamples = [];

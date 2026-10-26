@@ -1,0 +1,91 @@
+{
+  "commit": "2e03f8aee8bb44623b647037c58afeeebdc41c05",
+  "method": "source-fragment isolated probes with fixture dependencies; not repository tests",
+  "runtime": "v22.16.0",
+  "observed_cases": 8,
+  "all_expected_counterexamples_observed": true,
+  "outputs": [
+    {
+      "probe": "P01",
+      "finding": "Successful observe does not notify the UI",
+      "callbacks": 0,
+      "observation": {
+        "observation_id": "run:o1"
+      }
+    },
+    {
+      "probe": "P02",
+      "finding": "after_move peek returns current data under an existing id",
+      "previous": {
+        "observation_id": "run:o1",
+        "state": "before"
+      },
+      "actual": {
+        "observation_id": "run:o1",
+        "state": "after"
+      }
+    },
+    {
+      "probe": "P03",
+      "finding": "Merge across a view event duplicates sequence numbers and reverses timestamps",
+      "events": [
+        {
+          "seq": 1,
+          "type": "start",
+          "at_ms": 0
+        },
+        {
+          "seq": 3,
+          "type": "view",
+          "at_ms": 80
+        },
+        {
+          "seq": 3,
+          "type": "move",
+          "at_ms": 10,
+          "move": "R2"
+        }
+      ]
+    },
+    {
+      "probe": "P04",
+      "finding": "An identical alias retry conflicts with its normalized cached result",
+      "raw": "2Rw",
+      "cached": {
+        "move": "Rw"
+      },
+      "outcome": "E_OP_ID_CONFLICT"
+    },
+    {
+      "probe": "P05",
+      "finding": "Current total elapsed and historical median use different endpoints",
+      "current_total_elapsed_ms": 30000,
+      "historical_median_ms": 10000
+    },
+    {
+      "probe": "P06",
+      "finding": "Progress advertises observation after the restricted budget is exhausted",
+      "observation_allowed": true,
+      "canDeliverObservation": false
+    },
+    {
+      "probe": "P07",
+      "finding": "Step-zero replay loses the pre-start orientation",
+      "selectedBeforeStart": {
+        "up": "U",
+        "front": "R"
+      },
+      "actual": {
+        "up": "U",
+        "front": "F"
+      }
+    },
+    {
+      "probe": "P08",
+      "finding": "API object freezing does not isolate a returned cached result",
+      "api_frozen": true,
+      "result_frozen": false,
+      "cached_move": "U"
+    }
+  ]
+}
