@@ -51,6 +51,8 @@ export interface ConfigView {
   readonly participant: 'human' | 'agent';
   /** PRD §11.1：本地使用统计开关（仅存本机、不外发） */
   readonly telemetryEnabled: boolean;
+  /** PRD §11 可访问性（P2）：单色高对比配色 */
+  readonly monoMode: boolean;
   readonly puzzleSource: 'random' | 'seed' | 'preset';
   readonly seedText: string;
   readonly presetId: string | null;

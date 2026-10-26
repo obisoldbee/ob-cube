@@ -279,6 +279,7 @@ export function bootstrap(host: HTMLElement): void {
       slots: stateView.slots,
       visible: visibleFaces,
       masked,
+      mono: settings.get().monoMode,
     });
   }
 
@@ -481,6 +482,7 @@ export function bootstrap(host: HTMLElement): void {
       presetId: config.presetId,
       observationMode: config.observationMode,
       telemetryEnabled: settings.get().telemetryEnabled,
+      monoMode: settings.get().monoMode,
       presets: presetOptions(),
       validation: null,
     };
@@ -973,9 +975,15 @@ export function bootstrap(host: HTMLElement): void {
       if (patch.telemetryEnabled !== undefined) {
         settings.patch({ telemetryEnabled: patch.telemetryEnabled });
       }
-      // 参与者 / 本地统计切换只影响面板与设置，不动题面
+      // 单色高对比（P2）：只改渲染配色，不影响题面或规则
+      if (patch.monoMode !== undefined) {
+        settings.patch({ monoMode: patch.monoMode });
+        stage?.view.setMono(patch.monoMode);
+        updateNet();
+      }
+      // 参与者 / 本地统计 / 配色切换只影响面板与设置，不动题面
       const onlyLocalSettings = Object.keys(patch).every(
-        (key) => key === 'participant' || key === 'telemetryEnabled',
+        (key) => key === 'participant' || key === 'telemetryEnabled' || key === 'monoMode',
       );
       if (onlyLocalSettings) {
         persistConfig();
@@ -1075,6 +1083,7 @@ export function bootstrap(host: HTMLElement): void {
 
   attachResolver();
   stage?.setSize(session.size);
+  stage?.view.setMono(settings.get().monoMode);
   repaint();
   sync();
   refreshHistory();

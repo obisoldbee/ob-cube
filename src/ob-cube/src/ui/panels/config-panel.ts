@@ -13,7 +13,9 @@ import type { ConfigView } from '../view-model';
 import type { ChallengeConfig } from '../../services';
 
 export interface ConfigPanelHost {
-  onConfigChange(patch: Partial<ChallengeConfig> & { telemetryEnabled?: boolean }): void;
+  onConfigChange(
+    patch: Partial<ChallengeConfig> & { telemetryEnabled?: boolean; monoMode?: boolean },
+  ): void;
 }
 
 const TIME_PRESETS: readonly { label: string; sec: number | null }[] = [
@@ -126,6 +128,14 @@ export class ConfigPanel {
           { label: '关', value: 'off', checked: !view.telemetryEnabled },
         ],
         (value) => this.host.onConfigChange({ telemetryEnabled: value === 'on' }),
+      ),
+      this.chipRow(
+        '配色',
+        [
+          { label: '默认六色', value: 'off', checked: !view.monoMode },
+          { label: '单色高对比', value: 'on', checked: view.monoMode },
+        ],
+        (value) => this.host.onConfigChange({ monoMode: value === 'on' }),
       ),
       this.puzzleRow(view),
     );

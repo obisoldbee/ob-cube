@@ -20,6 +20,15 @@ const FACE_TOKEN: Readonly<Record<FaceId, string>> = {
   L: '--cube-L',
 };
 
+const MONO_TOKEN: Readonly<Record<FaceId, string>> = {
+  U: '--cube-mono-U',
+  D: '--cube-mono-D',
+  F: '--cube-mono-F',
+  B: '--cube-mono-B',
+  R: '--cube-mono-R',
+  L: '--cube-mono-L',
+};
+
 const FACE_LABEL: Readonly<Record<FaceId, string>> = {
   U: '上',
   R: '右',
@@ -46,6 +55,8 @@ export interface NetView {
   /** 当前授权可见的面；未列出的面显示「未授权」而不是颜色 */
   readonly visible: readonly FaceId[];
   readonly masked: boolean;
+  /** 单色高对比配色（P2，色弱友好） */
+  readonly mono?: boolean;
 }
 
 export class CubeNet {
@@ -96,7 +107,9 @@ export class CubeNet {
         const colorFace = FACE_ORDER[slot] ?? 'U';
         const sticker = document.createElement('span');
         sticker.className = 'cube-net__sticker';
-        sticker.style.background = view.masked ? 'var(--cube-masked)' : `var(${FACE_TOKEN[colorFace]})`;
+        sticker.style.background = view.masked
+          ? 'var(--cube-masked)'
+          : `var(${(view.mono ? MONO_TOKEN : FACE_TOKEN)[colorFace]})`;
         children.push(sticker);
       }
       grid.replaceChildren(...children);
