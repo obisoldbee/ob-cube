@@ -9,7 +9,7 @@
  *  - 转动按钮零颜色编码（18 个键同色），颜色编码会和魔方六色打架
  */
 
-import type { CubeSize } from '../contracts';
+import type { CubeSize, FaceId } from '../contracts';
 import type { LayerSpec, PrefixChar, TurnIntent } from './keymap';
 import { FACE_ZH } from './keymap';
 import { renderKbdSpec } from './kbd-chip';
@@ -18,10 +18,16 @@ import type { TabId, TurnButtonDef } from './turn-matrix-data';
 import { buildMatrixSpec, defaultTabFor, PREFIX_HELP, TAB_HELP, tabsFor } from './turn-matrix-data';
 import { icon } from './icons';
 
+/** hover 预览目标：只有知道「哪个面 + 哪几层」才能算出唯一的轴与物理层集合 */
+export interface LayerHoverTarget {
+  readonly face: FaceId;
+  readonly layers: LayerSpec;
+}
+
 export interface TurnMatrixHost {
   onTurn(intent: TurnIntent): void;
   /** hover 转动按钮 / 层槽 → 该层集合的 3D 外轮廓（30% 透明，UIUX §4.8） */
-  onLayerHover(layers: LayerSpec | null): void;
+  onLayerHover(target: LayerHoverTarget | null): void;
   onPrefixSync(prefix: PrefixChar | null): void;
 }
 
@@ -296,7 +302,7 @@ export class TurnMatrix {
       this.free = new FreePanel(this.size, {
         onTurn: (intent) => this.host.onTurn(intent),
         onPrefixSync: (prefix) => this.host.onPrefixSync(prefix),
-        onHover: (layers) => this.host.onLayerHover(layers),
+        onHover: (target) => this.host.onLayerHover(target),
       });
       this.grid.append(this.free.el);
       return;
@@ -321,7 +327,7 @@ export class TurnMatrix {
     const face = first?.intent.face;
     card.addEventListener('pointerenter', () => {
       card.dataset.hover = 'true';
-      if (first) this.host.onLayerHover(first.intent.layers);
+      if (first) this.host.onLayerHover({ face: first.intent.face, layers: first.intent.layers });
     });
     card.addEventListener('pointerleave', () => {
       delete card.dataset.hover;
@@ -365,9 +371,13 @@ export class TurnMatrix {
     } else {
       btn.dataset.kbdHidden = 'true';
     }
-    btn.addEventListener('pointerenter', () => this.host.onLayerHover(def.intent.layers));
+    btn.addEventListener('pointerenter', () =>
+      this.host.onLayerHover({ face: def.intent.face, layers: def.intent.layers }),
+    );
     btn.addEventListener('pointerleave', () => this.host.onLayerHover(null));
-    btn.addEventListener('focus', () => this.host.onLayerHover(def.intent.layers));
+    btn.addEventListener('focus', () =>
+      this.host.onLayerHover({ face: def.intent.face, layers: def.intent.layers }),
+    );
     btn.addEventListener('blur', () => this.host.onLayerHover(null));
     btn.addEventListener('click', () => this.host.onTurn(def.intent));
     return btn;

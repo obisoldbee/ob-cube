@@ -18,7 +18,7 @@ import {
   applyMove as engineApplyMove,
 } from '../engine';
 import type { CubeState, MoveSpec } from '../engine';
-import { createCubeStage } from '../render';
+import { createCubeStage, measureFrameBudget } from '../render';
 import type { CubeStage } from '../render';
 import {
   history,
@@ -36,9 +36,10 @@ import { estimatePuzzleDifficulty } from '../puzzle';
 import type { DifficultyEstimate } from '../puzzle';
 import { Workspace } from '../ui/shell';
 import type { UiPorts } from '../ui/shell';
+import { CubeNet } from '../ui/cube-net';
 import { formatClockTime, formatElapsed, formatSize } from '../ui/format';
 import type { HistoryView } from '../ui/view-model';
-import { layersOf } from '../ui/keymap';
+import { layersOf, isLayerSpecLegal } from '../ui/keymap';
 import type { TurnIntent } from '../ui/keymap';
 import type { ViewStep } from '../ui/keyboard';
 import type { AgentView, ChallengeView, ConfigView, LogRow, ObservationView, ResultView } from '../ui/view-model';
@@ -183,12 +184,18 @@ export function bootstrap(host: HTMLElement): void {
   // 赋值延迟到「启动」段：ports 的方法只在运行期被调用，那时两者一定已就绪。
   let workspace!: Workspace;
   let stage: CubeStage | null = null;
+  /** AC-53：WebGL 失败时的 2D 展开图（与 stage 互斥，二者最多一个存在） */
+  let net: CubeNet | null = null;
 
   let current: { spec: MoveSpec; quarters: number } | null = null;
   let replayTimer: number | null = null;
   /** 回放中的累积局面：从已还原态重放 scramble+moves，避免用终局作为起点。 */
   let replayState: CubeState | null = null;
   let lastTimerPaint = 0;
+  /** execution/render.md §8.5：帧预算采样窗口与降级标记状态 */
+  let lastFrameAt = 0;
+  let frameSamples: number[] = [];
+  let degraded = false;
   /** 上一次 sync() 落到 UI 的状态。状态翻转可能发生在只读 API（getProgress/observe
    * 的内部 tick）里——那种翻转在 tickAndSync 的 before/after 快照里永远不可见，
    * 若只比前后值，UI 会一直停留在旧状态直到用户下一次操作（AC-28 明令禁止）。 */
@@ -233,7 +240,10 @@ export function bootstrap(host: HTMLElement): void {
   }
 
   function repaint(): void {
-    if (!stage) return;
+    if (!stage) {
+      updateNet();
+      return;
+    }
     // 蒙尘=开：ready 态遮蔽；蒙尘=关：ready 态直接显示题面（预观察）。
     // 暂停期间同样遮蔽（PRD §7.2.1 P7'：暂停不能当"无限观察"用）。
     const status = session.status;
@@ -241,6 +251,20 @@ export function bootstrap(host: HTMLElement): void {
       (status === 'ready' && session.dustMode) || status === 'paused';
     stage.setDust(showDust);
     stage.view.applyFacelets(session.stateView);
+  }
+
+  /** AC-53：2D 降级视图的状态投影（观察模式与蒙尘口径与 3D 路径一致） */
+  function updateNet(stateView = replayState ?? session.stateView): void {
+    if (!net) return;
+    const status = session.status;
+    const masked =
+      replayState === null && ((status === 'ready' && session.dustMode) || status === 'paused');
+    net.update({
+      size: stateView.size,
+      slots: stateView.slots,
+      visible: session.visibleFaces(),
+      masked,
+    });
   }
 
   /** 回放进行中时先停掉，避免旧 interval 把新会话的局面搅乱 */
@@ -470,6 +494,7 @@ export function bootstrap(host: HTMLElement): void {
     workspace.updateLogs(rows, rows.length);
     workspace.setAgentVisible(config.participant === 'agent');
     if (config.participant === 'agent') workspace.updateAgent(agentView());
+    if (!stage) updateNet();
     if (isEnded(session.status)) {
       persistRunOnce();
       workspace.showResult(resultView());
@@ -600,6 +625,24 @@ export function bootstrap(host: HTMLElement): void {
         markFirstMoveDone();
       });
     },
+    previewLayer(face, layers) {
+      if (!stage) return;
+      if (!isLayerSpecLegal(layers, session.size)) {
+        stage.outline.hide();
+        return;
+      }
+      try {
+        const notation = describeMove({ size: session.size, face, layers: layersOf(layers, session.size), amount: 1 });
+        const spec = parseMove(notation, session.size);
+        // UIUX §4.8：hover = 30% 透明
+        stage.outline.show(spec.axis, spec.layerSet, session.size, 0.3);
+      } catch {
+        stage.outline.hide();
+      }
+    },
+    clearLayerPreview() {
+      stage?.outline.hide();
+    },
     viewStep(step: ViewStep) {
       guard(() => {
         const next = session.stepView(step);
@@ -613,7 +656,7 @@ export function bootstrap(host: HTMLElement): void {
       guard(() => applyView(faceViewState(face)));
     },
     replay() {
-      if (replayTimer !== null || !stage) return;
+      if (replayTimer !== null) return;
       flushAnimation();
       const moves = session.eventLog.filter((e) => e.type === 'move' && e.move !== null);
       if (moves.length === 0) {
@@ -624,12 +667,13 @@ export function bootstrap(host: HTMLElement): void {
       // 回放必须从「已还原」起步重放，而不是从当前终局起步：只有终局恰好还原时，
       // 后者才碰巧等价。超时/放弃/步数耗尽/中断的回放同样要看到真实的题面与过程。
       replayState = createSolvedState(session.size);
-      stage.setDust(false);
-      stage.view.applyFacelets(toStateView(replayState));
+      stage?.setDust(false);
+      stage?.view.applyFacelets(toStateView(replayState));
+      updateNet(toStateView(replayState));
       let cursor = 0;
       workspace.toast(`回放开始，共 ${moves.length} 步`);
       replayTimer = window.setInterval(() => {
-        if (cursor >= sequence.length || !stage) {
+        if (cursor >= sequence.length || (!stage && !net)) {
           // 先落位最后一步并用回放终局上色，再恢复会话当前局面。
           flushAnimation();
           stopReplay();
@@ -643,6 +687,7 @@ export function bootstrap(host: HTMLElement): void {
         const spec = parseMove(notation, session.size);
         if (replayState !== null) replayState = engineApplyMove(replayState, spec);
         animate(spec);
+        updateNet();
         cursor += 1;
       }, 260);
     },
@@ -783,13 +828,14 @@ export function bootstrap(host: HTMLElement): void {
   workspace.mount(host);
   stage = createCubeStage(workspace.stage.canvas);
   if (stage === null) {
-    workspace.stage.showWebglUnavailable();
-    return;
+    // AC-53：WebGL 初始化失败 → 2D 展开图降级。键盘/按钮、计时、判定、记录全部照常。
+    net = new CubeNet();
+    workspace.stage.show2dFallback(net.el);
   }
   mountCubeAgent(session, onApiMutate);
 
   attachResolver();
-  stage.setSize(session.size);
+  stage?.setSize(session.size);
   repaint();
   sync();
   refreshHistory();
@@ -823,9 +869,25 @@ export function bootstrap(host: HTMLElement): void {
 
   const loop = (): void => {
     const now = performance.now();
+    if (lastFrameAt !== 0) {
+      frameSamples.push(now - lastFrameAt);
+      if (frameSamples.length >= 60) {
+        const budget = measureFrameBudget(frameSamples);
+        if (budget.degraded !== degraded) {
+          degraded = budget.degraded;
+          workspace.setPerformanceNote(
+            degraded ? `性能已降级 · p95 ${budget.p95.toFixed(1)}ms` : null,
+          );
+        }
+        frameSamples = [];
+      }
+    }
+    lastFrameAt = now;
     session.beginFrame(); // AC-44：帧边界清零 applyMove 限流计数
-    if (current && !stage.animator.tick(now)) flushAnimation();
-    stage.render();
+    if (stage) {
+      if (current && !stage.animator.tick(now)) flushAnimation();
+      stage.render();
+    }
     tickAndSync();
     // 计时刷新降到 10Hz：面板虽然已经做了结构化 diff，但每帧重绘仍然是浪费，
     // 而且重建 DOM 会打断正在进行的指针交互。

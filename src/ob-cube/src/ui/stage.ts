@@ -43,9 +43,13 @@ export class Stage {
   private readonly fallback: HTMLElement;
   private readonly center: HTMLElement;
   private readonly pill: HTMLElement;
+  private readonly perf: HTMLElement;
+  private readonly netHost: HTMLElement;
   private readonly keymap: MiniKeymap;
   private phase: StagePhase = 'loading';
   private dustMode = false;
+  /** AC-53：2D 展开图降级模式（与 phase 正交：ready/running/ended 语义不变） */
+  private netMode = false;
 
   constructor(private readonly host: StageHost) {
     this.el = document.createElement('div');
@@ -68,6 +72,16 @@ export class Stage {
     this.pill.className = 'solved-pill';
     this.pill.hidden = true;
 
+    // execution/render.md §8.5：降级必须是**可见标记**，不能静默发生
+    this.perf = document.createElement('div');
+    this.perf.className = 'perf-note';
+    this.perf.hidden = true;
+
+    // AC-53：WebGL 失败时的 2D 展开图容器（由 wiring 注入 CubeNet）
+    this.netHost = document.createElement('div');
+    this.netHost.className = 'stage__net';
+    this.netHost.hidden = true;
+
     this.keymap = new MiniKeymap({
       isCollapsed: () => this.host.isKeymapCollapsed(),
       setCollapsed: (value) => this.host.setKeymapCollapsed(value),
@@ -85,6 +99,8 @@ export class Stage {
       this.viewHud(),
       this.pill,
       this.center,
+      this.netHost,
+      this.perf,
       keymapHost,
     );
     this.setPhase('loading');
@@ -93,10 +109,21 @@ export class Stage {
   setPhase(phase: StagePhase): void {
     this.phase = phase;
     this.fallback.hidden = phase !== 'webgl-unavailable';
+    this.canvas.hidden = this.netMode || phase === 'webgl-unavailable';
+    this.netHost.hidden = !this.netMode;
     this.canvas.dataset.webgl = phase === 'webgl-unavailable' ? 'unavailable' : 'ok';
     this.el.dataset.phase = phase;
     this.renderCenter();
     this.el.classList.toggle('stage--desaturated', phase === 'ended');
+  }
+
+  /** AC-53：接管 2D 展开图（调用方负责创建 CubeNet 并持续 update） */
+  show2dFallback(net: HTMLElement): void {
+    this.netMode = true;
+    this.netHost.replaceChildren(net);
+    this.netHost.hidden = false;
+    this.canvas.hidden = true;
+    this.renderCenter();
   }
 
   getPhase(): StagePhase {
@@ -106,6 +133,12 @@ export class Stage {
   setSolvedPending(pending: boolean): void {
     this.pill.hidden = !pending;
     this.el.dataset.solved = String(pending);
+  }
+
+  /** execution/render.md §8.5：帧预算降级的可见标记（null = 恢复正常） */
+  setPerformanceNote(text: string | null): void {
+    this.perf.hidden = text === null;
+    this.perf.textContent = text ?? '';
   }
 
   /** v1.9：蒙尘/预观察切换。ready 态下文案与提示随之变化。 */

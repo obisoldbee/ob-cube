@@ -25,7 +25,7 @@ import { describeMove } from './move-preview';
 export interface FreePanelHost {
   onTurn(intent: TurnIntent): void;
   onPrefixSync(prefix: PrefixChar | null): void;
-  onHover(layers: LayerSpec | null): void;
+  onHover(target: { face: FaceId; layers: LayerSpec } | null): void;
 }
 
 const AMOUNTS = [1, 2, 3] as const;
@@ -171,7 +171,7 @@ export class FreePanel {
         this.host.onTurn(this.turnIntent(amount));
         this.host.onPrefixSync(null);
       });
-      btn.addEventListener('pointerenter', () => this.host.onHover(this.spec()));
+      btn.addEventListener('pointerenter', () => this.host.onHover({ face: this.axis, layers: this.spec() }));
       btn.addEventListener('pointerleave', () => this.host.onHover(null));
       this.turnsEl.append(btn);
     }

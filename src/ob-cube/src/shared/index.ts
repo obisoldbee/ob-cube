@@ -5,3 +5,5 @@ export type { Result } from './result';
 export { createEmitter } from './emitter';
 export type { Emitter, Listener } from './emitter';
 export { RATE_LIMITED_MESSAGE, cubeError, rateLimitedError } from './errors';
+export { deltaE76, labOf, parseHex } from './color';
+export type { Lab } from './color';

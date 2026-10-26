@@ -11,7 +11,7 @@
 import type { CubeSize, FaceId } from '../contracts';
 import type { AppSettings, ChallengeConfig } from '../services';
 import type { StagePhase } from './stage';
-import type { TurnIntent } from './keymap';
+import type { LayerSpec, TurnIntent } from './keymap';
 import type { KeySignal, ViewStep } from './keyboard';
 import type { AgentView, ChallengeView, ConfigView, HistoryView, LogRow, ObservationView, ResultView } from './view-model';
 import { KeyboardController } from './keyboard';
@@ -42,6 +42,9 @@ export interface UiPorts {
   applyTurn(intent: TurnIntent, merged: boolean): void;
   /** F16（P1）：直接提交一条记法（如 `2Rw'`），与按钮/键盘共用同一提交点 */
   applyNotation(raw: string): void;
+  /** AC-81：hover 预览被转动物理层的外轮廓（30% 透明） */
+  previewLayer(face: FaceId, layers: LayerSpec): void;
+  clearLayerPreview(): void;
   viewStep(step: ViewStep): void;
   viewReset(): void;
   faceView(face: FaceId): void;
@@ -78,6 +81,8 @@ const NOOP_PORTS: UiPorts = {
   resetCube: () => undefined,
   applyTurn: () => undefined,
   applyNotation: () => undefined,
+  previewLayer: () => undefined,
+  clearLayerPreview: () => undefined,
   viewStep: () => undefined,
   viewReset: () => undefined,
   faceView: () => undefined,
@@ -188,7 +193,10 @@ export class Workspace {
 
     this.matrix = new TurnMatrix(this.view.size, {
       onTurn: (intent) => this.ports.applyTurn(intent, false),
-      onLayerHover: () => undefined,
+      onLayerHover: (target) => {
+        if (target) this.ports.previewLayer(target.face, target.layers);
+        else this.ports.clearLayerPreview();
+      },
       onPrefixSync: (prefix) => this.keyboard.syncPrefix(prefix),
     });
 
@@ -254,6 +262,11 @@ export class Workspace {
 
   setStagePhase(phase: StagePhase): void {
     this.stage.setPhase(phase);
+  }
+
+  /** execution/render.md §8.5：帧预算降级的可见标记 */
+  setPerformanceNote(text: string | null): void {
+    this.stage.setPerformanceNote(text);
   }
 
   update(view: ChallengeView): void {
