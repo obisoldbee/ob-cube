@@ -27,6 +27,7 @@ import {
   isLegalTimeLimitSec,
   isObservationMode,
   settings,
+  store,
 } from '../services';
 import { namespaced } from '../services/storage';
 import type { ChallengeConfig } from '../services';
@@ -43,6 +44,9 @@ import type { ViewStep } from '../ui/keyboard';
 import type { AgentView, ChallengeView, ConfigView, LogRow, ObservationView, ResultView } from '../ui/view-model';
 import type { ChallengeStatus, CubeSize, FaceId, ObservationMode, ViewState } from '../contracts';
 import { isCubeError, isEnded } from '../contracts';
+
+/** PRD §11：本地占用达到 4MB 时提示清理最旧记录（不静默删除） */
+const STORAGE_CLEANUP_THRESHOLD = 4 * 1024 * 1024;
 
 /** 运行期配置：settings.challenge + 阶数 + URL 覆盖合并后的单一事实 */
 interface RunConfig {
@@ -391,6 +395,9 @@ export function bootstrap(host: HTMLElement): void {
     try {
       history.save(session.getChallengeResult());
       refreshHistory();
+      if (store.usageBytes() >= STORAGE_CLEANUP_THRESHOLD) {
+        workspace.toast('本地存储已超过 4MB，建议在历史列表中清理最旧记录');
+      }
     } catch {
       workspace.toast('历史保存失败，本地存储可能已满（可导出 JSON 留存）');
     }

@@ -146,3 +146,21 @@ describe('历史记录仓储（PRD §9.3）', () => {
     expect(history.list().records.map((record) => record.id)).toEqual(['r2']);
   });
 });
+
+describe('PRD §11 存储占用计量', () => {
+  it('usageBytes 只计本命名空间，且随写入增长', () => {
+    const backend = new MemoryStorage();
+    backend.setItem('foreign:key', 'x'.repeat(1000));
+    const store = new LocalStore(backend);
+    expect(store.usageBytes()).toBe(0);
+    store.writeJson('run:abc', { hello: 'world' });
+    const first = store.usageBytes();
+    expect(first).toBeGreaterThan(0);
+    store.writeJson('run:def', { hello: 'world', extra: 'x'.repeat(500) });
+    expect(store.usageBytes()).toBeGreaterThan(first);
+  });
+
+  it('存储不可用时 usageBytes 为 0 且不抛异常', () => {
+    expect(new LocalStore(null).usageBytes()).toBe(0);
+  });
+});

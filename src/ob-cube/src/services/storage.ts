@@ -108,6 +108,26 @@ export class LocalStore {
     }
     return out;
   }
+
+  /** 本命名空间当前占用的 UTF-16 字节数估计（PRD §11 的 4MB 提示阈值） */
+  usageBytes(): number {
+    if (!this.backend) return 0;
+    let total = 0;
+    let prefixCount = 0;
+    const prefix = `${NAMESPACE}:`;
+    try {
+      for (let i = 0; i < this.backend.length; i += 1) {
+        const key = this.backend.key(i);
+        if (!key || !key.startsWith(prefix)) continue;
+        const value = this.backend.getItem(key);
+        if (value !== null) total += (key.length + value.length) * 2;
+        prefixCount += 1;
+      }
+    } catch {
+      return 0;
+    }
+    return prefixCount === 0 ? 0 : total;
+  }
 }
 
 function detectStorage(): Storage | null {

@@ -264,6 +264,8 @@ export interface ChallengeResult {
   first_move_ms?: number | null;
   solved_at_ms?: number | null;
   submit_ms?: number | null;
+  /** PRD §10.4：事件数超过 2000 条时置 true，表示 view 事件被优先丢弃 */
+  events_truncated?: boolean;
 }
 
 // ---------------------------------------------------------------------------

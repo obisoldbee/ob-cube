@@ -568,3 +568,26 @@ describe('§7.2 派生计时指标', () => {
     expect(result.wall_elapsed_ms).toBe(6_000);
   });
 });
+
+describe('PRD §10.4 事件上限与截断标记', () => {
+  it('超过 2000 条时 view 事件优先丢弃，move/end 保留并标记截断', () => {
+    const { session } = makeSession();
+    session.start();
+    session.applyIntent('R', [1], 1, false);
+    for (let i = 0; i < 2100; i += 1) session.rotateView({ up: 'U', front: i % 2 === 0 ? 'F' : 'R' });
+    session.abandon('done');
+    const result = session.getChallengeResult();
+    expect(result.events_truncated).toBe(true);
+    expect(result.events.every((event) => event.type !== 'view')).toBe(true);
+    expect(result.events.some((event) => event.type === 'move')).toBe(true);
+    expect(result.events.some((event) => event.type === 'end')).toBe(true);
+    expect(result.final_fingerprint).toBeTruthy();
+  });
+
+  it('未超上限时不标记截断', () => {
+    const { session } = makeSession();
+    session.start();
+    session.abandon('done');
+    expect(session.getChallengeResult().events_truncated).toBeUndefined();
+  });
+});

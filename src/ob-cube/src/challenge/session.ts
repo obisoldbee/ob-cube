@@ -72,6 +72,8 @@ const RESTRICTED_OBSERVE_BUDGET = 24;
  * 计数由宿主每帧调 beginFrame() 清零（wiring 的 rAF 循环与兜底 interval）；
  * 同步死循环在一帧内必然累积超限，正常输入每帧至多一两次。 */
 const RATE_LIMIT = 60;
+/** PRD §10.4：单次运行落盘事件上限；超出时 view 事件优先丢弃并标注截断 */
+export const MAX_RECORDED_EVENTS = 2000;
 
 let entropyCounter = 0;
 
@@ -710,7 +712,7 @@ export class ChallengeSession {
       move_count: this.moveCount,
       elapsed_ms: this.elapsedMs(),
       tps: this.tps(),
-      events: [...this.events],
+      events: this.exportedEvents(),
       initial_fingerprint: fingerprintState(this.initialState),
       final_fingerprint: fingerprintState(this.state),
       ended_reason: this.lastSubmit?.reason ?? null,
@@ -723,7 +725,17 @@ export class ChallengeSession {
       first_move_ms: this.firstMoveMs(),
       solved_at_ms: this.solvedAtMs(),
       submit_ms: this.submitMs(),
+      ...(this.events.length > MAX_RECORDED_EVENTS ? { events_truncated: true } : {}),
     };
+  }
+
+  /**
+   * PRD §10.4：超出上限时只保留前 2000 条非 view 事件——view 事件优先丢弃，
+   * move / pause / resume / submit / end 优先保留。最终状态由指纹字段承载，不受截断影响。
+   */
+  private exportedEvents(): RunEvent[] {
+    if (this.events.length <= MAX_RECORDED_EVENTS) return [...this.events];
+    return this.events.filter((event) => event.type !== 'view').slice(0, MAX_RECORDED_EVENTS);
   }
 
   /** 三种计步口径（AC-49）：从已定稿事件重算，不依赖内部计数。 */
