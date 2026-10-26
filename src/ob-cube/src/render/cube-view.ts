@@ -59,6 +59,8 @@ export class CubeView {
   private readonly masks: MaskMaterials;
   private dust = true;
   private resolver: SlotResolver | null = null;
+  /** 观察者回放：仅这些世界面显示真实颜色，其余面用遮蔽色（null = 全部显示） */
+  private reveal: ReadonlySet<FaceId> | null = null;
 
   constructor(private readonly palette: CubePalette) {
     this.group.name = 'cube';
@@ -104,6 +106,11 @@ export class CubeView {
     }
   }
 
+  /** 观察者回放：只显示授权的世界面。调用后需立刻 applyFacelets 以重绘。 */
+  setReveal(faces: readonly FaceId[] | null): void {
+    this.reveal = faces === null ? null : new Set(faces);
+  }
+
   /** 按 facelet 状态逐面派生贴纸颜色。渲染层不缓存状态，每次全量重算。 */
   applyFacelets(state: CubeStateView): void {
     if (!this.resolver) throw new Error('slot 解析函数未接线：请先 setSlotResolver(engine.slotOf)');
@@ -114,7 +121,12 @@ export class CubeView {
     const resolver = this.resolver;
     for (const record of this.records) {
       for (const sticker of record.cubie.stickers) {
-        const slot = resolver(record.lattice, worldFaceOf(record, sticker.face));
+        const worldFace = worldFaceOf(record, sticker.face);
+        if (this.reveal !== null && !this.reveal.has(worldFace)) {
+          sticker.mesh.material = this.masks.sticker;
+          continue;
+        }
+        const slot = resolver(record.lattice, worldFace);
         const colorId = state.slots[slot] ?? 0;
         const material = this.faceMaterials[colorId];
         if (material) sticker.mesh.material = material;

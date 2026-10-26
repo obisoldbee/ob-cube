@@ -151,3 +151,23 @@ export interface HistoryView {
   readonly corrupt: readonly { readonly id: string }[];
   readonly canPersist: boolean;
 }
+
+/** F09b：回放三视角（PRD §10.3） */
+export type ReplayViewMode = 'god' | 'observer' | 'verify';
+
+export interface ReplayView {
+  readonly totalSteps: number;
+  readonly currentStep: number;
+  readonly elapsedMs: number;
+  readonly playing: boolean;
+  /** 0.5 / 1 / 2 / 4 */
+  readonly speed: number;
+  readonly mode: ReplayViewMode;
+  /** AC-50：记录由旧版引擎生成时必须先确认才播放 */
+  readonly versionMismatch: boolean;
+  /** AC-50：用户已确认仍要回放 */
+  readonly versionConfirmed: boolean;
+  /** 校验视角：当前步的 6 面颜色矩阵与发生变化的那些面 */
+  readonly grids: readonly { readonly face: FaceId; readonly grid: FaceGrid }[];
+  readonly changedFaces: readonly FaceId[];
+}

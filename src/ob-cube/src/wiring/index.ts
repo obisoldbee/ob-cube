@@ -10,6 +10,7 @@ import { mountCubeAgent } from '../agent';
 import {
   createSolvedState,
   describeMove,
+  faceGrid,
   FACE_GEOMETRY,
   getSlotTable,
   parseMove,
@@ -42,9 +43,9 @@ import type { HistoryView } from '../ui/view-model';
 import { layersOf, isLayerSpecLegal } from '../ui/keymap';
 import type { TurnIntent } from '../ui/keymap';
 import type { ViewStep } from '../ui/keyboard';
-import type { AgentView, ChallengeView, ConfigView, LogRow, ObservationView, ResultView } from '../ui/view-model';
+import type { AgentView, ChallengeView, ConfigView, LogRow, ObservationView, ReplayView, ReplayViewMode, ResultView } from '../ui/view-model';
 import type { ChallengeStatus, CubeSize, FaceId, ObservationMode, ViewState } from '../contracts';
-import { isCubeError, isEnded } from '../contracts';
+import { COLOR_OF_FACE, ENGINE_VERSION, FACE_ORDER, isCubeError, isEnded } from '../contracts';
 
 /** PRD §11：本地占用达到 4MB 时提示清理最旧记录（不静默删除） */
 const STORAGE_CLEANUP_THRESHOLD = 4 * 1024 * 1024;
@@ -191,6 +192,14 @@ export function bootstrap(host: HTMLElement): void {
   let replayTimer: number | null = null;
   /** 回放中的累积局面：从已还原态重放 scramble+moves，避免用终局作为起点。 */
   let replayState: CubeState | null = null;
+  /** F09b 回放控制状态 */
+  let replayMoves: string[] = [];
+  let replayStep = 0;
+  let replaySpeed = 1;
+  let replayMode: ReplayViewMode = 'god';
+  let replayPlaying = false;
+  let replayVersionMismatch = false;
+  let replayVersionConfirmed = false;
   let lastTimerPaint = 0;
   /** execution/render.md §8.5：帧预算采样窗口与降级标记状态 */
   let lastFrameAt = 0;
@@ -254,7 +263,10 @@ export function bootstrap(host: HTMLElement): void {
   }
 
   /** AC-53：2D 降级视图的状态投影（观察模式与蒙尘口径与 3D 路径一致） */
-  function updateNet(stateView = replayState ?? session.stateView): void {
+  function updateNet(
+    stateView = replayState ?? session.stateView,
+    visibleFaces: readonly FaceId[] = session.visibleFaces(),
+  ): void {
     if (!net) return;
     const status = session.status;
     const masked =
@@ -262,18 +274,152 @@ export function bootstrap(host: HTMLElement): void {
     net.update({
       size: stateView.size,
       slots: stateView.slots,
-      visible: session.visibleFaces(),
+      visible: visibleFaces,
       masked,
     });
   }
 
-  /** 回放进行中时先停掉，避免旧 interval 把新会话的局面搅乱 */
+  /** 回放进行中时先停掉，避免旧定时器把新会话的局面搅乱 */
   function stopReplay(): void {
     if (replayTimer !== null) {
-      window.clearInterval(replayTimer);
+      window.clearTimeout(replayTimer);
       replayTimer = null;
     }
+    replayPlaying = false;
+    replayStep = 0;
+    replayMoves = [];
     replayState = null;
+    workspace?.hideReplayPanel();
+  }
+
+  // ------------------------------------------------------------- F09b 回放
+
+  function replayTotal(): number {
+    return replayMoves.length;
+  }
+
+  /** 第 k 步的局面 = 已还原态 → 打乱 → 前 k 条 move 事件 */
+  function stateAtStep(step: number): CubeState {
+    let state = createSolvedState(session.size);
+    const sequence = [...session.record.scramble, ...replayMoves.slice(0, step)];
+    for (const notation of sequence) state = engineApplyMove(state, parseMove(notation, session.size));
+    return state;
+  }
+
+  function replayVisibleFaces(): readonly FaceId[] {
+    return replayMode === 'observer' ? session.visibleFaces() : FACE_ORDER;
+  }
+
+  function gridsOf(state: CubeState): readonly { face: FaceId; grid: ReturnType<typeof toGrid> }[] {
+    return FACE_ORDER.map((face) => ({ face, grid: toGrid(state, face) }));
+  }
+
+  function toGrid(state: CubeState, face: FaceId) {
+    return faceGrid(state, face).map((row) => row.map((id) => COLOR_OF_FACE[FACE_ORDER[id] ?? 'U']));
+  }
+
+  function replayPanelView(prevState: CubeState | null): ReplayView {
+    const total = replayTotal();
+    const current = replayState ?? session.stateView;
+    const moveEvents = session.eventLog.filter((event) => event.type === 'move');
+    const elapsedMs = replayStep > 0 ? (moveEvents[replayStep - 1]?.at_ms ?? 0) : 0;
+    const grids = replayMode === 'verify' ? gridsOf(current) : [];
+    const changedFaces =
+      replayMode === 'verify' && prevState !== null
+        ? FACE_ORDER.filter((face) => JSON.stringify(toGrid(prevState, face)) !== JSON.stringify(toGrid(current, face)))
+        : [];
+    return {
+      totalSteps: total,
+      currentStep: replayStep,
+      elapsedMs,
+      playing: replayPlaying,
+      speed: replaySpeed,
+      mode: replayMode,
+      versionMismatch: replayVersionMismatch,
+      versionConfirmed: replayVersionConfirmed,
+      grids,
+      changedFaces,
+    };
+  }
+
+  function paintReplay(prevState: CubeState | null = null): void {
+    if (replayState === null) return;
+    const view = toStateView(replayState);
+    if (stage) {
+      stage.setDust(false);
+      stage.view.setReveal(replayMode === 'observer' ? replayVisibleFaces() : null);
+      stage.view.applyFacelets(view);
+    }
+    updateNet(view, replayVisibleFaces());
+    workspace.updateReplay(replayPanelView(prevState));
+  }
+
+  function schedulePlayback(): void {
+    if (!replayPlaying) return;
+    const delay = Math.max(60, Math.round(260 / replaySpeed));
+    replayTimer = window.setTimeout(() => {
+      replayTimer = null;
+      if (!replayPlaying) return;
+      if (replayStep >= replayTotal()) {
+        replayPlaying = false;
+        paintReplay();
+        return;
+      }
+      const prev = replayState;
+      replayStep += 1;
+      replayState = stateAtStep(replayStep);
+      paintReplay(prev);
+      if (replayStep >= replayTotal()) {
+        replayPlaying = false;
+        paintReplay();
+      } else {
+        schedulePlayback();
+      }
+    }, delay);
+  }
+
+  function seekReplay(step: number): void {
+    replayPlaying = false;
+    if (replayTimer !== null) {
+      window.clearTimeout(replayTimer);
+      replayTimer = null;
+    }
+    const prev = replayState;
+    replayStep = Math.max(0, Math.min(replayTotal(), step));
+    replayState = stateAtStep(replayStep);
+    paintReplay(prev);
+  }
+
+  function beginReplay(): void {
+    flushAnimation();
+    stopReplay();
+    const events = session.eventLog.filter((event) => event.type === 'move' && event.move !== null);
+    if (events.length === 0) {
+      workspace.toast('本次还没有可回放的转动');
+      return;
+    }
+    replayMoves = events.map((event) => event.move as string);
+    replayStep = 0;
+    replaySpeed = 1;
+    replayMode = 'god';
+    replayPlaying = false;
+    const result = session.getChallengeResult();
+    replayVersionMismatch = result.engine_version !== ENGINE_VERSION;
+    replayVersionConfirmed = false;
+    replayState = stateAtStep(0);
+    workspace.showReplayPanel();
+    paintReplay();
+    // AC-50：旧版引擎记录不得静默播放，必须等用户确认
+    replayPlaying = !replayVersionMismatch;
+    if (replayPlaying) schedulePlayback();
+    workspace.updateReplay(replayPanelView(null));
+    workspace.toast(`已进入回放，共 ${replayMoves.length} 步`);
+  }
+
+  function exitReplay(): void {
+    stopReplay();
+    stage?.view.setReveal(null);
+    repaint();
   }
 
   /** 换会话（换题/换配置/换阶数）的统一路径 */
@@ -656,40 +802,51 @@ export function bootstrap(host: HTMLElement): void {
       guard(() => applyView(faceViewState(face)));
     },
     replay() {
-      if (replayTimer !== null) return;
-      flushAnimation();
-      const moves = session.eventLog.filter((e) => e.type === 'move' && e.move !== null);
-      if (moves.length === 0) {
-        workspace.toast('本次还没有可回放的转动');
-        return;
+      beginReplay();
+    },
+    replayPlay() {
+      if (replayVersionMismatch && !replayVersionConfirmed) return;
+      if (replayTotal() === 0) return;
+      if (replayStep >= replayTotal()) seekReplay(0);
+      replayPlaying = true;
+      paintReplay();
+      schedulePlayback();
+    },
+    replayPause() {
+      replayPlaying = false;
+      if (replayTimer !== null) {
+        window.clearTimeout(replayTimer);
+        replayTimer = null;
       }
-      const sequence = [...session.record.scramble, ...moves.map((e) => e.move as string)];
-      // 回放必须从「已还原」起步重放，而不是从当前终局起步：只有终局恰好还原时，
-      // 后者才碰巧等价。超时/放弃/步数耗尽/中断的回放同样要看到真实的题面与过程。
-      replayState = createSolvedState(session.size);
-      stage?.setDust(false);
-      stage?.view.applyFacelets(toStateView(replayState));
-      updateNet(toStateView(replayState));
-      let cursor = 0;
-      workspace.toast(`回放开始，共 ${moves.length} 步`);
-      replayTimer = window.setInterval(() => {
-        if (cursor >= sequence.length || (!stage && !net)) {
-          // 先落位最后一步并用回放终局上色，再恢复会话当前局面。
-          flushAnimation();
-          stopReplay();
-          repaint();
-          workspace.toast('回放结束，已恢复当前局面');
-          return;
+      paintReplay();
+    },
+    replayStep(delta) {
+      seekReplay(replayStep + delta);
+    },
+    replaySeek(step) {
+      seekReplay(step);
+    },
+    replaySpeed(rate) {
+      replaySpeed = rate;
+      if (replayPlaying) {
+        if (replayTimer !== null) {
+          window.clearTimeout(replayTimer);
+          replayTimer = null;
         }
-        // 先完成上一步（此时上色仍是上一步的状态），再推进到下一步并动画。
-        flushAnimation();
-        const notation = sequence[cursor] as string;
-        const spec = parseMove(notation, session.size);
-        if (replayState !== null) replayState = engineApplyMove(replayState, spec);
-        animate(spec);
-        updateNet();
-        cursor += 1;
-      }, 260);
+        schedulePlayback();
+      }
+      paintReplay();
+    },
+    replayMode(mode) {
+      replayMode = mode;
+      paintReplay();
+    },
+    replayConfirmVersion() {
+      replayVersionConfirmed = true;
+      paintReplay();
+    },
+    replayClose() {
+      exitReplay();
     },
     rerun() {
       // 同题面重跑：回到 ready，由玩家显式按下开始（v1.9：不自动起表）

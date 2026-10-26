@@ -13,11 +13,12 @@ import type { AppSettings, ChallengeConfig } from '../services';
 import type { StagePhase } from './stage';
 import type { LayerSpec, TurnIntent } from './keymap';
 import type { KeySignal, ViewStep } from './keyboard';
-import type { AgentView, ChallengeView, ConfigView, HistoryView, LogRow, ObservationView, ResultView } from './view-model';
+import type { AgentView, ChallengeView, ConfigView, HistoryView, LogRow, ObservationView, ReplayView, ReplayViewMode, ResultView } from './view-model';
 import { KeyboardController } from './keyboard';
 import { StatusBar } from './status-bar';
 import { Stage } from './stage';
 import { TurnMatrix } from './turn-matrix';
+import { ReplayPanel } from './replay-panel';
 import { ShortcutOverlay } from './shortcut-overlay';
 import { icon } from './icons';
 import { ChallengePanel } from './panels/challenge-panel';
@@ -49,6 +50,15 @@ export interface UiPorts {
   viewReset(): void;
   faceView(face: FaceId): void;
   replay(): void;
+  /** F09b 回放控制 */
+  replayPlay(): void;
+  replayPause(): void;
+  replayStep(delta: -1 | 1): void;
+  replaySeek(step: number): void;
+  replaySpeed(rate: number): void;
+  replayMode(mode: ReplayViewMode): void;
+  replayConfirmVersion(): void;
+  replayClose(): void;
   rerun(): void;
   /** v1.9：再挑战一次 = 保留配置生成新题面（区别于同题面重跑） */
   retryNew(): void;
@@ -87,6 +97,14 @@ const NOOP_PORTS: UiPorts = {
   viewReset: () => undefined,
   faceView: () => undefined,
   replay: () => undefined,
+  replayPlay: () => undefined,
+  replayPause: () => undefined,
+  replayStep: () => undefined,
+  replaySeek: () => undefined,
+  replaySpeed: () => undefined,
+  replayMode: () => undefined,
+  replayConfirmVersion: () => undefined,
+  replayClose: () => undefined,
   rerun: () => undefined,
   retryNew: () => undefined,
   updateConfig: () => undefined,
@@ -135,6 +153,7 @@ export class Workspace {
   private readonly agentPanel: AgentPanel;
   private readonly historyPanel: HistoryPanel;
   private readonly resultPanel: ResultPanel;
+  private readonly replayPanel: ReplayPanel;
   private readonly keyboard: KeyboardController;
   private readonly overlay = new ShortcutOverlay();
   private readonly toastEl: HTMLElement;
@@ -214,6 +233,16 @@ export class Workspace {
       onRetry: () => this.ports.retryNew(),
       onCopyFingerprint: (text) => this.ports.copy(text ?? '', '题面指纹'),
       onShowLog: () => this.clearResult(),
+    });
+    this.replayPanel = new ReplayPanel({
+      onPlay: () => this.ports.replayPlay(),
+      onPause: () => this.ports.replayPause(),
+      onStep: (delta) => this.ports.replayStep(delta),
+      onSeek: (step) => this.ports.replaySeek(step),
+      onSpeed: (rate) => this.ports.replaySpeed(rate),
+      onMode: (mode) => this.ports.replayMode(mode),
+      onConfirmVersion: () => this.ports.replayConfirmVersion(),
+      onClose: () => this.ports.replayClose(),
     });
 
     this.keyboard = new KeyboardController({
@@ -318,6 +347,22 @@ export class Workspace {
   clearResult(): void {
     this.resultShowing = false;
     this.buildRightColumn();
+  }
+
+  /** F09b：进入回放模式（控制条替换转动矩阵） */
+  showReplayPanel(): void {
+    this.matrix.el.hidden = true;
+    this.firstRunEl.hidden = true;
+    this.replayPanel.el.hidden = false;
+  }
+
+  hideReplayPanel(): void {
+    this.replayPanel.el.hidden = true;
+    this.matrix.el.hidden = false;
+  }
+
+  updateReplay(view: ReplayView): void {
+    this.replayPanel.update(view);
   }
 
   setStorageWarning(text: string | null): void {
@@ -458,7 +503,8 @@ export class Workspace {
     const center = document.createElement('main');
     center.className = 'col col--stage';
     center.setAttribute('aria-label', '魔方操作区');
-    center.append(opHead, this.firstRunEl, this.stage.el, this.matrix.el);
+    this.replayPanel.el.hidden = true;
+    center.append(opHead, this.firstRunEl, this.stage.el, this.matrix.el, this.replayPanel.el);
 
     const left = document.createElement('aside');
     left.className = 'col col--left';

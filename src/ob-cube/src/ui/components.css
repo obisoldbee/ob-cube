@@ -1557,3 +1557,99 @@
   font-size: var(--text-xs, 12px);
   text-align: center;
 }
+
+/* F09b 回放控制条（替换转动矩阵；PRD §10.2 / ui-shell §11） */
+.replay {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  padding: var(--space-3, 12px);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
+}
+
+.replay__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3, 12px);
+}
+
+.replay__title {
+  margin: 0;
+  font-size: var(--text-sm, 14px);
+  color: var(--fg);
+}
+
+.replay__step,
+.replay__time {
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs, 12px);
+}
+
+.replay__head .btn {
+  margin-left: auto;
+}
+
+.replay__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  flex-wrap: wrap;
+}
+
+.replay__range {
+  flex: 1 1 220px;
+  min-width: 160px;
+  accent-color: var(--accent);
+}
+
+.replay__speeds,
+.replay__modes {
+  display: flex;
+  gap: 4px;
+}
+
+.replay__warning {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: var(--space-2, 8px);
+  border: 1px solid var(--warn, #d9a441);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--warn, #d9a441);
+  font-size: var(--text-xs, 12px);
+}
+
+.replay__verify {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2, 8px);
+}
+
+.replay__face {
+  padding: 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+}
+
+.replay__face[data-changed='true'] {
+  border-color: var(--accent);
+}
+
+.replay__face-label {
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs, 12px);
+}
+
+.replay__matrix {
+  display: grid;
+  gap: 1px;
+  aspect-ratio: 1;
+}
+
+.replay__cell {
+  display: block;
+  border-radius: 1px;
+}
