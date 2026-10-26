@@ -9,6 +9,8 @@
 | 关联 | `docs/decisions/2026-10-26-prd-v2-rulings-decision.md`（裁定）、`docs/specs/execution/verification.md` §12.1（验证命令） |
 
 > 本文件是**状态报告**，不是需求文档。它记录"代码现在做到哪一步"，会随实现推进而过期；需求口径一律以 `docs/specs/prd/` 为准。
+>
+> **2026-10-26 后续更新**：D1 / D2 / D6 已修复，F14 / F16 / F17 / F13 / F09b / §11.1 等 P1 项已推进；最新状态以 [`2026-10-26-deepseek-branch-progress.md`](2026-10-26-deepseek-branch-progress.md) 为准。本文件保留为 v2.0 定稿时的历史快照。
 
 ---
 

@@ -208,3 +208,35 @@
 
 ---
 
+
+---
+
+## v2.1-dev 变更记录（2026-10-26 DeepSeek 分支开发）
+
+> 性质：**实现推进**，不是需求变更。AC 编号与内容未改动；本节只记录因开发落地而产生的契约增补与交付状态变化。
+
+### A. `src/ob-cube/src/contracts.ts` 契约增补（向后兼容）
+
+| # | 字段 | 变更 | 兼容性 |
+|---|---|---|---|
+| 69 | `ChallengeConfig.observationMode` | 新增（`services/settings.ts` 的配置模型，字面真源在 services 而非冻结契约） | 旧设置缺键时回落 `full`，`coerceChallenge` 逐字段修复 |
+| 70 | `ChallengeResult.wall_elapsed_ms?` / `first_move_ms?` / `solved_at_ms?` / `submit_ms?` | 新增可选派生计时字段（PRD §7.2 的 P1 项） | 全部可空；旧记录缺键按 `null` 处理，不改记录格式、不迁移 |
+| 71 | `ChallengeResult.events_truncated?` | 新增可选布尔（PRD §10.4 的 2000 条上限截断标记） | 未截断时省略该键 |
+
+### B. 交付状态变化（详见 `docs/reports/2026-10-26-deepseek-branch-progress.md`）
+
+| # | 项 | 变化 |
+|---|---|---|
+| 72 | D1 `solved_pending` 超时豁免 | **已修复**，新增两条测试 |
+| 73 | D2 `autoSubmitOnSolved` 默认值 | 改为 `false`（AC-79） |
+| 74 | F14 观察模式 | `ChallengeConfig` + 配置面板 + URL `?observe=` 入口落地；`after_move` 增加门控与 `E_OBSERVATION_REQUIRES_MOVE` |
+| 75 | F16 记法输入框 | `F2` 聚焦 + 输入框提交，与按钮/键盘共用同一提交点 |
+| 76 | F17 难度标签 | `puzzle/difficulty.ts` 实现 §6.2 启发式公式，结果页/会话面板显示等级与分数 |
+| 77 | F13 同题面对比 | 结果页中位耗时参照落地 |
+| 78 | F09b 回放 | 独立控制条：播放/暂停/单步/进度条/0.5–4×/三视角/AC-50 版本确认 |
+| 79 | §11.1 埋点 | 本地环形缓冲 + 配置页开关 + 主要事件接线 |
+| 80 | AC-16 探针 | 配色侧 ΔE 自动断言（`tests/render/ac16-probe.test.ts`） |
+| 81 | AC-53 2D 降级 | WebGL 失败改走 2D 展开图，键盘/判定/记录照常 |
+| 82 | D4/D5/D10/D9 | 帧预算可见降级、层描边 hover 接线、覆盖率门禁、three vendor chunk 拆分 |
+
+> 未完成：`D3` 的 `stickerLabels`（面中心字母）仍为 P2 未实现；`D7` 文件规模拆分未做；`agent_think_ms` 因事件流不含观察事件而无法派生。

@@ -47,12 +47,12 @@ workbuddy1024 — Code Project Root。当前唯一工程是 **ob-cube**（`src/o
 | Field | Value |
 |---|---|
 | Project Root | `.` |
-| Repository Root | **not configured — 本项目未初始化 Git**（用户未授权建仓） |
-| Clone URL / remote | local only |
-| Default ref | unknown |
-| Managed scope | `src/ob-cube/`（工程目录，非 Git 管理范围） |
+| Repository Root | `.`（2026-10-26 用户授权 `git init`；初始提交 `909aa73`） |
+| Clone URL / remote | local only（无 remote） |
+| Default ref | `DeepSeek`（开发分支；`main` 为基线） |
+| Managed scope | 全项目（文档 + `src/ob-cube/`） |
 
-> **无 Git 的直接后果**：worktree-first 策略要求的「任务专属分支 + linked worktree」**无法执行**。代码改动需用户单独授权，且没有提交点可回退。不得擅自 `git init`。
+> **Git 现状**：仓库已初始化，默认基线在 `main`，开发工作在 `DeepSeek` 分支。`node_modules/`、`dist/`、`.screenshots/`、`.ego/`、`.workbuddy/` 已由根 `.gitignore` 排除。worktree-first 策略的任务分支可在需要并行写入时使用；当前无 remote，不得擅自 push。
 
 
 ## Routing Rules
@@ -70,4 +70,4 @@ workbuddy1024 — Code Project Root。当前唯一工程是 **ob-cube**（`src/o
 - Read the instructions and materials needed for the selected task; reuse complete current readings. Run checks for the changed contract or behavior and preserve required acceptance gates, without unrelated suites or repeated passing checks.
 - Record significant decisions and substantive work that adds useful continuity; update indexes only when their represented facts change. Response-only tasks create no project records. Use separate task records and one integrator for canonical logs and sequence numbers.
 - Complete the authorized deliverable, inspect it, fix failures caused by the change, and rerun affected checks without per-step approval. Report any unresolved blocker and the actual completion boundary.
-- Do not initialize Git, move material, or publish without task authorization. A temporary task-specific worktree can support authorized code changes; choose its exact repository, base, branch and path before creating it. Initialization itself creates no worktree. **This project has no Git repository, so no worktree can be created — code changes need explicit per-task authorization and have no commit point to roll back to.**
+- Do not initialize Git, move material, or publish without task authorization. A temporary task-specific worktree can support authorized code changes; choose its exact repository, base, branch and path before creating it. Initialization itself creates no worktree. **Git is initialized (baseline `main`, development branch `DeepSeek`); do not push or add remotes without explicit authorization.**
