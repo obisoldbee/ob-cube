@@ -1,0 +1,608 @@
+/* ============================================================================
+ * cube-challenge · design-tokens.css
+ * 魔方挑战与 AI Agent 评测平台 · 深色竞技风
+ * 设计师：颜好看 | Phase 1 | v1.0
+ *
+ * 结构：Primitive(原始值) → Semantic(语义) → Component(组件)
+ *       对应四层架构：A1-identity / A1-structure / A2 / B-slot / C-extension
+ *
+ * 铁律：
+ *  1. 任何组件不得出现裸色值，只能引用本文件的 var(...)
+ *  2. 本文件是全项目唯一色值定义点
+ *  3. 3D 舞台区（--stage-bg 范围内）禁止出现 accent 色元素，
+ *     画布内的颜色只能来自 --cube-* 系列
+ * ==========================================================================*/
+
+:root {
+  color-scheme: dark;
+
+  /* ==========================================================================
+   * 1 · PRIMITIVE — 中性灰阶（深色 5 级背景 + 4 级文字）
+   * 实测 L* 阶梯，相邻 ΔL* ≥ 2.1，肉眼可分辨
+   * ========================================================================*/
+
+  /* ---- 背景 5 级：页面底 / 面板 / 卡片 / 悬浮层 / 输入框底 ---- */
+  --grey-0:   #08090C;   /* L*  2.47  sunken  —— 输入框底、日志滚动区底、代码块 */
+  --grey-1:   #0D1015;   /* L*  4.61  page    —— 页面底色 */
+  --grey-2:   #141922;   /* L*  8.65  panel   —— 三栏面板底 §  ΔL* +4.04 */
+  --grey-3:   #1B222C;   /* L* 12.98  card    —— 卡片、按钮填充 §  ΔL* +4.33 */
+  --grey-4:   #252D3A;   /* L* 18.26  float   —— 悬浮层、popover、dropdown §  ΔL* +5.28 */
+
+  /* ---- 边框 / 描边 ---- */
+  --grey-5:   #2A3341;   /* 非交互分隔线      1.26:1 on card */
+  --grey-6:   #3D4A5C;   /* 可交互元素常态边框 1.78:1 on card */
+  --grey-7:   #64748C;   /* 控件边界（无障碍） 3.37:1 on card —— 承担 WCAG 1.4.11 */
+
+  /* ---- 文字 4 级（对比度均为 vs --bg-panel 与 vs --bg-card 实测）---- */
+  --grey-8:   #F2F6FA;   /* L* 96.69  16.22:1 / 14.74:1  主文本 */
+  --grey-9:   #C4CEDA;   /* L* 82.35  11.06:1 / 10.05:1  次级文本 */
+  --grey-10:  #8D99A9;   /* L* 62.77   6.09:1 /  5.54:1  弱文本 / 元数据 */
+  --grey-11:  #6B7686;   /* L* 49.26   3.83:1 /  3.48:1  禁用文本 */
+
+  /* ---- 品牌强调色：信号青（六色中无青，天然不与魔方抢注意力）---- */
+  --cyan-400: #1ED0C0;   /* L* 75.6   9.09:1 on panel */
+  --cyan-500: #17B5A8;
+  --cyan-600: #109488;
+
+  /* ---- 主操作白（暗色工具站的主 CTA 用白实心，比彩色更克制）---- */
+  --white-cta:   #EDF1F5; /* L* 95.0  15.52:1 on panel */
+  --white-cta-h: #FFFFFF;
+
+  /* ---- 语义色 ---- */
+  --green-ok:  #3FD07A;  /* 8.82:1 on panel */
+  --amber-warn:#F0B429;  /* 9.45:1 on panel */
+  --red-bad:   #FF5D57;  /* 5.84:1 on panel */
+  --blue-live: #7AB8FF;  /* 8.50:1 on panel */
+
+  /* ==========================================================================
+   * 2 · SEMANTIC — 语义 Token
+   * ========================================================================*/
+
+  /* ---- 背景 ---- */
+  --bg:            var(--grey-1);   /* 页面底 */
+  --bg-sunken:     var(--grey-0);   /* 输入框底 / 凹槽 */
+  --bg-panel:      var(--grey-2);   /* 三栏面板 */
+  --bg-card:       var(--grey-3);   /* 卡片 / 按钮填充 */
+  --bg-float:      var(--grey-4);   /* 悬浮层 */
+  --bg-stage:      #0B0E14;         /* 3D 舞台专用底（独立于 5 级，L* 3.94，刻意压暗让贴纸更亮）*/
+
+  /* ---- 前景 ---- */
+  --fg:            var(--grey-8);
+  --fg-2:          var(--grey-9);
+  --fg-3:          var(--grey-10);
+  --fg-disabled:   var(--grey-11);
+
+  /* ---- 边框 ---- */
+  --border-subtle: var(--grey-5);
+  --border:        var(--grey-6);
+  --border-control:var(--grey-7);   /* 输入框 / 纯图标按钮 / 开关，承担 3:1 */
+
+  /* ---- 强调 · 状态 ---- */
+  --accent:        var(--cyan-400);
+  --accent-hover:  var(--cyan-500);
+  --accent-active: var(--cyan-600);
+  --accent-soft:   rgba(30, 208, 192, 0.12);  /* 选中底 / 高亮底 */
+  --accent-ring:   rgba(30, 208, 192, 0.40);  /* focus ring */
+
+  --action:        var(--white-cta);   /* 主 CTA 实心底 */
+  --action-hover:  var(--white-cta-h);
+  --action-on:     var(--grey-0);      /* 主 CTA 上的文字 17.54:1 */
+
+  --success:       var(--green-ok);
+  --warn:          var(--amber-warn);
+  --danger:        var(--red-bad);
+  --live:          var(--blue-live);
+
+  --success-soft:  rgba(63, 208, 122, 0.12);
+  --warn-soft:     rgba(240, 180, 41, 0.12);
+  --danger-soft:   rgba(255, 93, 87, 0.12);
+
+  /* ==========================================================================
+   * 3 · 魔方六色（C-extension · 项目专属，全项目唯一色值定义点）
+   *
+   * 设计约束（实测数据见 UIUX.md §2.5）：
+   *  - 六色 L* 严格阶梯 97.1 / 82.7 / 74.0 / 66.1 / 56.5 / 47.0
+   *    两两最小 ΔL* = 7.87 → 即使完全灰度化（全色盲）仍可区分
+   *  - 两两最小 ΔE(CIE76) = 40.0（正常视觉）
+   *  - 在 stage 上对比度最小 3.86:1（R 红），满足非文本 3:1
+   *  - 红↔绿 ΔL* = 27.0，是本方案对红绿色盲的核心补偿
+   * ========================================================================*/
+  --cube-U: #F4F7FB;   /* 上 · 白   L* 97.11  17.98:1 */
+  --cube-D: #F5C93C;   /* 下 · 黄   L* 82.66  12.24:1 */
+  --cube-F: #3DCE80;   /* 前 · 绿   L* 73.99   9.51:1 */
+  --cube-L: #F5821F;   /* 左 · 橙   L* 66.12   7.45:1 */
+  --cube-B: #5484EC;   /* 后 · 蓝   L* 56.53   5.42:1 */
+  --cube-R: #CB3A36;   /* 右 · 红   L* 46.97   3.86:1 */
+
+  /* 魔方骨架 / 贴纸间隙 */
+  --cube-body:        #080A0D;
+  --cube-sticker-gap: 0.06;            /* 相对贴纸边长的间隙比例（Three.js 侧读取）*/
+  --cube-sticker-edge: rgba(255, 255, 255, 0.10); /* 贴纸内描边，防止红面在深底上丢轮廓 */
+
+  /* 蒙尘态（未解锁）
+   * 依据 docs/specs/prd/05-dust-observation.md AC-16：ready 且 dust_mode 时，
+   * 用「确定性探针」证明魔方表面未出现任何贴纸颜色。
+   * 可执行口径（唯一，见 docs/specs/execution/ui-visual.md §6.6）：
+   *   探针点 = 每个可见面中心 1 点 + 每面 4 个内缩点（内缩 = 该面投影包围盒 25%），
+   *   由 CubeView.getProbePoints() 提供；断言 ① 探针像素 vs --cube-masked 的 ΔE ≤ 2，
+   *   ② 探针像素 vs 6 个贴纸色任一的 ΔE ≥ 20。2D 降级视图用 6 个网格面中心作探针点。
+   * 注：旧口径「画布中心 80% 区域内除背景外颜色种类 ≤ 2」已被 PRD v1.5 明令废止——
+   *     开启抗锯齿后 MSAA 边缘必有过渡色，该统计式断言恒假；且「80%」把判定绑在布局比例上，
+   *     窗口尺寸一变就漂。本文件下方若仍见该表述，一律以本段为准。
+   * 因此蒙尘材质必须是「单色平光 unlit」，不得有纹理、凹槽明暗、方向光。
+   * --cube-dust-grain / --cube-dust-rough 保留但【禁止读取】，仅为记录被否决的方案。*/
+  /* 蒙尘遮蔽色。AC-16 是「确定性探针」判定，这个值是被测指标，不是主观选择：
+   *   · 探针 vs 本值        ΔE ≤ 2  —— 所以遮蔽材质必须 unlit + NoToneMapping
+   *   · 本值 vs 6 个贴纸色  ΔE ≥ 20 —— 实测最差 63.85（vs B 蓝 #5484EC），余量 3.2 倍
+   * 最危险的一对不是「灰白 vs 白」，而是「蓝调 vs 蓝贴纸」：深色竞技风的遮蔽色天然带冷蓝，
+   * 而六色里正好有蓝。若要把本值调得更深更蓝（如 #1E2A44），第一个必须测的就是它和 --cube-B。
+   * 对 --bg-stage 仅 1.49:1 是刻意压低（让白色 CTA 保持画面最亮）；
+   * 若截图显示剪影读不出，已批准的 fallback 是 #3A4152（1.89:1，ΔE 最差 56.48 仍远超 20）。*/
+  --cube-dust-base:   #2B323C;         /* L* 20.52 */
+  --cube-dust-grain:  0;               /* 已作废：任何噪点都会产生 >2 种像素色 */
+  --cube-dust-rough:  0;               /* 已作废：蒙尘态不走 PBR */
+
+  /* 色觉辅助 · 单色模式（6 级灰阶 = 直接取六色 L* 阶梯）*/
+  --cube-mono-U: #F4F7FB;
+  --cube-mono-D: #D6D9DD;
+  --cube-mono-F: #B4B8BD;
+  --cube-mono-L: #91969C;
+  --cube-mono-B: #71767C;
+  --cube-mono-R: #52575E;
+
+  /* ==========================================================================
+   * 4 · 字体
+   * ========================================================================*/
+  --font-display: "Barlow Semi Condensed", "Noto Sans SC", "PingFang SC",
+                  "Microsoft YaHei", sans-serif;
+  --font-body:    "Barlow", "Noto Sans SC", "PingFang SC",
+                  "Microsoft YaHei", sans-serif;
+  --font-mono:    "JetBrains Mono", "SF Mono", "Cascadia Mono",
+                  ui-monospace, monospace;
+
+  /* ---- 字号阶梯 8 级 ---- */
+  --text-xs:   11px;   /* 角标 / 快捷键 / 单位 */
+  --text-sm:   12px;   /* 元数据 / 表头 / 行内标签 */
+  --text-base: 14px;   /* 正文 / 按钮 / 日志行 */
+  --text-md:   16px;   /* 面板标题 / 输入框 */
+  --text-lg:   20px;   /* 区块标题 */
+  --text-xl:   28px;   /* 页面标题 / 结果主数值 */
+  --text-2xl:  40px;   /* 计时器（整数位）*/
+  --text-3xl:  56px;   /* 结果卡片主数值 */
+
+  /* ---- 行高 ---- */
+  --leading-tight:  1.15;   /* 标题 / 数值 */
+  --leading-snug:   1.35;   /* 小标题 */
+  --leading-body:   1.55;   /* 正文 */
+  --leading-loose:  1.7;    /* 长说明（极少用）*/
+
+  /* ---- 字距 ---- */
+  --tracking-display: -0.02em;  /* ≥28px 标题 */
+  --tracking-tight:   -0.01em;  /* 16-27px 标题 */
+  --tracking-body:     0;
+  --tracking-caps:     0.08em;  /* 全大写标签，强制 ≥0.06em */
+  --tracking-mono:    -0.01em;  /* 等宽数字略收紧 */
+
+  /* ---- 字重（三级体系）---- */
+  --weight-read:      400;
+  --weight-emphasize: 500;
+  --weight-announce:  600;
+
+  /* ==========================================================================
+   * 5 · 间距（4px 网格，仅允许下列值）
+   * ========================================================================*/
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---- 节区节奏 ---- */
+  --gap-panel:     var(--space-4);   /* 面板内模块间距 */
+  --gap-group:     var(--space-3);   /* 组内间距 */
+  --pad-panel:     var(--space-4);   /* 面板内边距 */
+  --pad-card:      var(--space-3);
+  --pad-control:   0 var(--space-3); /* 按钮水平内边距 */
+
+  /* ==========================================================================
+   * 6 · 圆角（4 级 + pill，卡片上限 14px，禁止 ≥24px 的“AI 过度圆滑”）
+   * ========================================================================*/
+  --radius-sm:   4px;    /* 角标 / chip / 贴纸质感配套 */
+  --radius-md:   6px;    /* 按钮 / 输入框 */
+  --radius-lg:  10px;    /* 卡片 / 面卡 */
+  --radius-xl:  14px;    /* 浮层 / 结果卡 */
+  --radius-pill: 9999px; /* 状态点 / segmented 滑块 */
+
+  /* ==========================================================================
+   * 7 · 层级与阴影
+   * 深色主题用“亮度递进 + 内描边”表达层级，不用大模糊阴影。
+   * 规则：卡片只用 --elev-1（无 blur）。--elev-2/3 仅用于真正的浮层。
+   * ========================================================================*/
+  --elev-0: none;
+  --elev-1: 0 0 0 1px var(--border-subtle);                                  /* 卡片 / 面卡 */
+  --elev-2: 0 0 0 1px var(--border), 0 12px 32px -8px rgba(0, 0, 0, 0.55);   /* dropdown / popover */
+  --elev-3: 0 0 0 1px var(--border), 0 24px 56px -12px rgba(0, 0, 0, 0.70);  /* modal / 结果卡 */
+  --elev-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.08);                 /* 按钮顶部高光，营造“可按下” */
+
+  /* ---- z-index 表 ---- */
+  --z-base:        0;
+  --z-stage-hud:  10;   /* 画布内的悬浮工具条 */
+  --z-sticky:    100;   /* 吸顶栏 */
+  --z-dropdown:  200;
+  --z-popover:   300;   /* 快捷键浮层 */
+  --z-modal:     400;
+  --z-toast:     500;
+  --z-dev:       600;   /* 仅开发期 */
+
+  /* ==========================================================================
+   * 8 · 动效
+   * 禁止一切带负值控制点的弹跳/回弹缓动（spring / bounce / elastic 类）。
+   * 理由见 UIUX.md §2.7：回弹会让“转动是否完成”产生视觉歧义，
+   * 与 PRD「每次转动都可被验证」冲突；且前庭敏感用户对反向运动最易不适。
+   * ========================================================================*/
+  --dur-instant:  80ms;   /* 按下 */
+  --dur-fast:    120ms;   /* 状态确认 / hover 退场 */
+  --dur-base:    150ms;   /* 基准收敛值：几乎所有过渡 */
+  --dur-slow:    220ms;   /* 面板展开 / 描边淡出 */
+  --dur-enter:   260ms;   /* 浮层进入 / 日志新行 */
+  --dur-turn:    200ms;   /* 单次魔方层转动动画（可配置 120-320ms）*/
+  --dur-scene:   400ms;   /* 结果卡出现 */
+  --dur-cinema:  600ms;   /* 仅“蒙尘解锁”一次，全局唯一超 500ms 动画 */
+
+  --ease-standard:  cubic-bezier(0.2, 0, 0, 1);      /* 默认：确定、无回弹 */
+  --ease-out:       cubic-bezier(0.16, 1, 0.3, 1);   /* 进入 */
+  --ease-in:        cubic-bezier(0.4, 0, 1, 1);      /* 退出 */
+  --ease-inout:     cubic-bezier(0.65, 0, 0.35, 1);  /* 跨屏 */
+
+  /* ==========================================================================
+   * 9 · 布局
+   * ========================================================================*/
+  --container-max: 1920px;
+  --col-left:   340px;   /* ≥1440 */
+  --col-right:  392px;
+  --col-left-md:  300px; /* 1200-1440 */
+  --col-right-md: 352px;
+  --col-left-sm:  264px; /* 900-1200 */
+  --col-right-sm: 312px;
+
+  --stage-min-h: 420px;
+  --touch-min:    44px;  /* WCAG 2.5.5 最小触摸目标 */
+}
+
+/* ============================================================================
+ * 10 · 组件 Token（B-slot）
+ * ==========================================================================*/
+
+:root {
+  /* ---- 按钮 · 主操作（白实心，每屏 1 个）---- */
+  --btn-action-bg:        var(--action);
+  --btn-action-bg-hover:  var(--action-hover);
+  --btn-action-fg:        var(--action-on);
+
+  /* ---- 按钮 · 次操作（描边）---- */
+  --btn-secondary-bg:      transparent;
+  --btn-secondary-bg-hover:var(--bg-card);
+  --btn-secondary-border:  var(--border);
+  --btn-secondary-fg:      var(--fg);
+
+  /* ---- 按钮 · 幽灵（密集工具条）---- */
+  --btn-ghost-bg:        transparent;
+  --btn-ghost-bg-hover:  var(--bg-card);
+  --btn-ghost-fg:        var(--fg-2);
+  --btn-ghost-fg-hover:  var(--fg);
+
+  /* ---- 按钮 · 危险（仅描边，不做实心——实心红+白字仅 4.45:1 不达标）---- */
+  --btn-danger-fg:       var(--danger);
+  --btn-danger-border:   var(--danger);
+  --btn-danger-bg-hover: var(--danger-soft);
+
+  /* ---- 转动按钮（中栏矩阵专用）---- */
+  --btn-turn-bg:         var(--bg-card);
+  --btn-turn-bg-hover:   var(--grey-4);
+  --btn-turn-fg:         var(--fg);
+  --btn-turn-border:     var(--border-subtle);
+  --btn-turn-bg-active:  var(--accent-soft);
+  --btn-turn-fg-active:  var(--accent);
+  --btn-turn-radius:     var(--radius-md);
+  --btn-turn-h:          40px;
+  --btn-turn-w:          56px;
+
+  /* ---- 面卡（6 个面各一张）---- */
+  --face-card-bg:        transparent;
+  --face-card-border:    var(--border-subtle);
+  --face-card-radius:    var(--radius-lg);
+  --face-card-pad:       var(--space-2);
+
+  /* ---- 快捷键角标 ---- */
+  --kbd-bg:      var(--bg-sunken);
+  --kbd-fg:      var(--fg-3);
+  --kbd-border:  var(--border-subtle);
+  --kbd-radius:  var(--radius-sm);
+
+  /* ---- 输入框 ---- */
+  --input-bg:           var(--bg-sunken);
+  --input-fg:           var(--fg);
+  --input-placeholder:  var(--fg-3);
+  --input-border:       var(--border-control);
+  --input-border-hover: var(--fg-3);
+  --input-border-focus: var(--accent);
+  --input-ring-focus:   0 0 0 3px var(--accent-ring);
+  --input-border-error: var(--danger);
+  --input-ring-error:   0 0 0 3px var(--danger-soft);
+  --input-bg-disabled:  var(--grey-2);
+  --input-fg-disabled:  var(--fg-disabled);
+
+  /* ---- 状态徽章 ---- */
+  --badge-pending-bg:  var(--grey-3);
+  --badge-pending-fg:  var(--fg-2);
+  --badge-running-bg:  var(--accent-soft);
+  --badge-running-fg:  var(--accent);
+  --badge-paused-bg:   var(--warn-soft);
+  --badge-paused-fg:   var(--warn);
+  --badge-failed-bg:   var(--danger-soft);
+  --badge-failed-fg:   var(--danger);
+  --badge-solved-bg:   var(--success-soft);
+  --badge-solved-fg:   var(--success);
+
+  /* ---- 计时器 ---- */
+  --timer-fg:            var(--fg);
+  --timer-fg-warning:    var(--warn);      /* 剩余 ≤ 60s */
+  --timer-fg-critical:   var(--danger);    /* 剩余 ≤ 10s */
+  --timer-fg-timeout:    var(--danger);
+  --timer-int-fs:        var(--text-2xl);
+  --timer-frac-fs:       var(--text-lg);   /* 小数位小一号，降低视觉噪音 */
+  --timer-min-w:         7ch;              /* 固定宽度防跳动 */
+
+  /* ---- 操作日志 ---- */
+  --log-bg:            var(--bg-sunken);
+  --log-row-h:         28px;
+  --log-row-divider:   var(--border-subtle);
+  --log-idx-fg:        var(--fg-3);
+  --log-move-fg:       var(--fg);
+  --log-meta-fg:       var(--fg-3);
+  --log-new-flash:     var(--accent-soft);  /* 新行进入时的底闪，200ms 消退 */
+  --log-ok-fg:         var(--success);
+  --log-bad-fg:        var(--danger);
+
+  /* ---- Agent 状态 ---- */
+  --agent-dot-idle:     var(--fg-disabled);
+  --agent-dot-ready:    var(--live);
+  --agent-dot-busy:     var(--accent);
+  --agent-dot-stale:    var(--warn);
+  --agent-dot-offline:  var(--danger);
+  --agent-dot-size:     8px;
+  --agent-progress-h:   1px;               /* 顶部不确定进度条高度 */
+
+  /* ---- 蒙尘遮罩 ---- */
+  --dust-mask-fill:     rgba(11, 14, 20, 0.86);
+  --dust-cta-shadow:    0 8px 32px rgba(0, 0, 0, 0.6);
+
+  /* ---- 3D 层描边（画布内唯一允许的 accent 元素，见 UIUX.md §5.3 L2）---- */
+  --layer-outline:          var(--accent);            /* 按下 / 已选中：实线 100% */
+  --layer-outline-hover:    rgba(30, 208, 192, 0.30); /* hover 预览：30% */
+  --layer-outline-pending:  var(--accent);            /* 前缀态：虚线 60% */
+  --layer-outline-pending-opacity: 0.60;
+  --layer-outline-width:    2px;                      /* 屏幕空间恒定，不随缩放 */
+  --layer-outline-fade:     var(--dur-fast);
+  --layer-dim-neighbor:     0.96;                     /* 邻层压暗系数 */
+
+  /* ---- 快捷键角标三态（UIUX.md §5.1）---- */
+  --kbd-key-bg:        var(--bg-sunken);   /* 实心键帽 */
+  --kbd-key-fg:        var(--fg-3);
+  --kbd-key-fg-hover:  var(--fg);
+  --kbd-key-border:    var(--border-subtle);
+  --kbd-prefix-bg:     transparent;        /* 前缀：空心，与键帽形成填/空对比 */
+  --kbd-prefix-fg:     var(--fg-3);
+  --kbd-prefix-border: var(--border);
+  --kbd-prefix-size:   var(--text-xs);
+  --kbd-mod-gap:       0;                  /* 修饰紧贴：0 间隔 */
+  --kbd-prefix-gap:    2px;                /* 前缀分离：2px 间隔 */
+  --kbd-repeat-fg:     var(--fg-3);        /* ×2 后缀 */
+
+  /* ---- 状态栏（前缀态 / 归并 / 已还原，UIUX.md §5.4）---- */
+  --statusbar-fg:           var(--fg-3);
+  --statusbar-fg-active:    var(--fg);
+  --statusbar-preview-fg:   var(--fg);
+  --statusbar-merged-fg:    var(--accent);
+  --statusbar-h:            44px;
+
+  /* ---- 视角 HUD ---- */
+  --hud-bg:               transparent;
+  --hud-bg-hover:         var(--bg-card);
+  --hud-fg:               var(--fg-2);
+  --hud-border:           var(--border-subtle);
+  --hud-orbit-size:       32px;            /* 轨道键 32×32 */
+  --hud-faceview-w:       44px;            /* 面视键 44×26 */
+  --hud-faceview-h:       26px;
+  --hud-faceview-fg:      var(--fg-2);
+  --hud-faceview-active-bg: var(--accent-soft);
+  --hud-faceview-active-fg: var(--accent);
+
+  /* ---- 层选择器的「起层 / 止层」chip（UIUX.md §4.5H；AC-40 已收窄为连续区间）---- */
+  --slot-bg:            transparent;
+  --slot-fg:            var(--fg-2);
+  --slot-border:        var(--border);
+  --slot-bg-checked:    var(--accent-soft);
+  --slot-fg-checked:    var(--accent);
+  --slot-border-checked: var(--accent);
+  --slot-size:          28px;
+  --slot-radius:        var(--radius-sm);
+
+  /* ---- 结果面板（右栏，PRD §9.1 五区块，UIUX.md §7.4.1）---- */
+  --result-verdict-fg:      var(--fg);
+  --result-verdict-size:    var(--text-xl);
+  --result-sub-fg:          var(--fg-3);
+  --result-metric-label-fg: var(--fg-3);
+  --result-metric-value-fg: var(--fg);
+  --result-metric-value-size: var(--text-xl);
+  --result-metric-divider:  var(--border-subtle);
+  --result-compare-fg:      var(--fg-3);
+  --result-section-gap:     var(--space-5);
+
+  /* ---- 诚实标注（PRD §9.2 / C5，UIUX.md §7.4.4 / §6.5）---- */
+  --disclosure-fg:      var(--fg-3);
+  --disclosure-size:    var(--text-xs);
+  --disclosure-leading: var(--leading-body);
+  --disclosure-divider: var(--border-subtle);
+  --disclosure-gap:     var(--space-2);
+
+  /* ---- 提交机会圆点（PRD §7.3，连续 3 次失败终止）---- */
+  --attempt-dot-size:   6px;
+  --attempt-dot-idle:   var(--border);
+  --attempt-dot-used:   var(--danger);
+
+  /* ---- Focus ---- */
+  --focus-ring:         0 0 0 2px var(--bg-panel), 0 0 0 4px var(--accent);
+  --focus-ring-inset:   inset 0 0 0 2px var(--accent);
+}
+
+/* ============================================================================
+ * 11 · 全局无障碍兜底
+ * ==========================================================================*/
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-instant: 0ms;
+    --dur-fast:    0ms;
+    --dur-base:    0ms;
+    --dur-slow:    0ms;
+    --dur-enter:   0ms;
+    --dur-turn:    0ms;   /* 转动动画直接跳帧到终态，但状态变更照常发生 */
+    --dur-scene:   0ms;
+    --dur-cinema:  0ms;   /* 蒙尘解锁改为 150ms 不透明度交叉淡入 */
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --fg-3:          var(--grey-9);
+    --border:        var(--grey-7);
+    --border-subtle: var(--grey-6);
+  }
+}
+
+/* ============================================================================
+ * 13 · 架构层别名（ARCHITECTURE.md §8.7 的全部 Token 名）
+ *
+ * 背景：架构文档 §8.7 与 §9.1 指定了 16 个 CSS 变量名，并要求
+ *      「色值只在 ui/tokens.css 出现一次」。本文件即该文件，因此这里为架构
+ *      指定的每个名字提供一等别名 —— 两份文档不产生第二处色值定义。
+ *
+ * 关系：本文件 §1–§11 的 Token 是【超集】。架构的 16 个名字全部有效，
+ *      但它们不足以表达界面需要的层级（5 级背景 / 4 级文字 / 控件边界 /
+ *      层描边 / 角标三态等），所以 UI 层仍以 §1–§11 为准。
+ *
+ * 唯一必须注意的语义分歧见下方 --accent-primary 的注释。
+ * ==========================================================================*/
+
+:root {
+  /* ---- 魔方六面（渲染层 palette.ts 读这 6 个）---- */
+  --cube-face-u: var(--cube-U);
+  --cube-face-d: var(--cube-D);
+  --cube-face-f: var(--cube-F);
+  --cube-face-b: var(--cube-B);
+  --cube-face-r: var(--cube-R);
+  --cube-face-l: var(--cube-L);
+
+  /* ---- 魔方本体与遮蔽 ---- */
+  /* --cube-body 同名同义，无需别名 */
+  --cube-masked: var(--cube-dust-base);   /* 蒙尘遮蔽外观（PRD AC-16：ready 态唯一允许的像素色） */
+
+  /* ---- 表面 ---- */
+  --surface-canvas: var(--bg-stage);      /* 3D 画布背景 */
+  --surface-panel:  var(--bg-panel);      /* 三栏面板背景 */
+
+  /* ---- 文本 ---- */
+  --text-primary:   var(--fg);
+  --text-secondary: var(--fg-2);
+  --text-muted:     var(--fg-3);
+  /* 架构未定义禁用文本，UI 层补： --fg-disabled */
+
+  /* ---- 强调 / 状态 ----
+   * 重要分歧（已在 UIUX.md §10 记录）：
+   * 架构 §8.7 注释「--accent-primary 用于按钮、主动作」，但本设计的主 CTA
+   * 是【白色实心】( --action-bg )，不是青色实心。原因：
+   *   1. 中栏有一个 6 色的魔方，青色 CTA 会与 F 面绿( #3DCE80, L*74.0 )
+   *      和 --accent( #1ED0C0, L*75.6 ) 抢注意力（两者 L* 仅差 1.6）；
+   *   2. 白实心对深底 15.5:1，是所有方案里对比度最高、hue 冲突为零的；
+   *   3. Linear / Vercel 的深色主题主 CTA 均为白实心，这是该品类的成熟解。
+   * 因此：--accent-primary 保留给「进行中 / 实时 / 选中 / focus」，
+   *      主 CTA 请用 --action-bg。
+   */
+  --accent-primary: var(--accent);
+  --accent-success: var(--success);
+  --accent-warning: var(--warn);
+  --accent-danger:  var(--danger);
+  --action-bg:      var(--action);        /* 主 CTA 填充（白实心）*/
+  --action-bg-hover:var(--action-hover);
+  --action-fg:      var(--action-on);     /* 主 CTA 文字（近黑）*/
+
+  /* ---- 边框 ----
+   * 架构只给了 2 个；UI 层实际需要 3 个（多出的 --border-control 承担
+   * WCAG 1.4.11 的 3:1 控件边界）。--border-strong 对应 UI 的 --border。
+   */
+  --border-strong: var(--border);
+
+  /* --border-subtle 同名同义，无需别名 */
+  /* --focus-ring 同名同义，无需别名 */
+}
+
+/* ============================================================================
+ * 14 · PRD v1.2 新增组件（暂停态 / 层选择器 / 回放 / 归并待定行 / 5 字符按钮）
+ * ==========================================================================*/
+
+:root {
+  /* ---- 操作区头（两行：tabs + 层选择器&状态栏）---- */
+  --header-h:      64px;
+  --header-row-h:  32px;
+
+  /* ---- 转动按钮的「5 字符」宽档（G4 `3Rw'` / G6 `3R'` 激活时）----
+   * 不靠缩字号解决：缩了会让 G1 与 G4 的字号不一致。
+   * 3 列 × 64px + 面卡内边距 ≈ 208px，中栏 ≥620px 即可容纳（1280 最小窗口成立）。*/
+  --btn-turn-w-wide: 64px;   /* G4 `3Rw'` / G6 `2L2` 等 5 字符标签激活时 */
+
+  /* ---- 层选择器（1 个控件；展开后是 popover）---- */
+  --layer-sel-h:           28px;
+  --layer-sel-bg:          var(--bg-card);
+  --layer-sel-fg:          var(--fg-2);
+  --layer-sel-fg-active:   var(--fg);
+  --layer-sel-border:      var(--border-subtle);
+  --layer-sel-bg-manual:   var(--accent-soft);   /* 「手动层」态：tab 全不高亮时 */
+  --layer-sel-fg-manual:   var(--accent);
+
+  /* ---- 暂停态（PRD 7.2.1，UIUX 7.7）---- */
+  --stage-pause-veil:   rgba(13, 16, 21, 0.20);  /* 20%，不可加重：暂停不收回题面 */
+  --stage-pause-dim:    0.4;                      /* HUD / 矩阵按钮的 opacity */
+  --pause-banner-bg:    rgba(37, 45, 58, 0.92);   /* --bg-float 92% */
+  --pause-banner-title-fg: var(--fg);
+  --pause-flag-fg:      var(--warn);              /* 「计时仍在进行」这一行 */
+  --timer-paused-fg:    var(--timer-fg);          /* paused 态数字不变色 */
+  --timer-paused-tag-bg: var(--warn-soft);
+  --timer-paused-tag-fg: var(--warn);
+
+  /* ---- 日志「待定行」（双击归并专用，UIUX 5.5）---- */
+  --log-row-pending-opacity: 0.55;
+  --log-pending-dot:         var(--fg-3);
+  --log-pending-dot-done:    var(--success);
+  --log-current-bg:          var(--accent-soft);  /* 回放联动高亮：整行底色 */
+
+  /* ---- 回放（PRD 10，UIUX 11）---- */
+  --replay-bar-h:        56px;
+  --replay-track-bg:     var(--bg-card);
+  --replay-track-fill:   var(--accent);
+  --replay-thumb-size:   12px;
+  --replay-mark-move:    var(--fg-disabled);   /* 普通转动：1px 小刻度 */
+  --replay-mark-obs:     var(--accent);        /* 观察点：4px 竖线 */
+  --replay-mark-pause:   var(--warn);          /* pause/resume：4px 竖线 */
+  --replay-diff-outline: var(--warn);          /* 校验视角的差异贴纸描边 */
+}

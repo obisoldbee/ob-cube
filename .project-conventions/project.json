@@ -1,0 +1,16 @@
+{
+  "access_readme_sha256": "7dfb24aaee163aaa173be484cf598daf615db9bb9542d32b5ad7867148f85eaf",
+  "agents_block_sha256": "f0b3a4d5c2d1f5ab5cd40bad38f78c57d849a27b0ed123584faec7eef282fdea",
+  "coordination_id": null,
+  "coordination_policy": "worktree-first",
+  "coordination_root": null,
+  "helper_sha256": "2e8f24abc847e67320f6e15af391c0992099b647047ee3cc5b0c8b9073fe594c",
+  "project_profile": "standard",
+  "project_role": "ordinary",
+  "project_type": "code",
+  "records_dir": null,
+  "repository_root": null,
+  "runtime_backend": "project-local",
+  "schema_version": 1,
+  "skill_package": null
+}

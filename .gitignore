@@ -1,0 +1,29 @@
+# 依赖与构建产物
+node_modules/
+dist/
+coverage/
+*.local
+
+# 日志
+npm-debug.log*
+yarn-error.log*
+*.log
+
+# 编辑器 / 操作系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Harness 与本地运行期
+.ego/
+.workbuddy/
+.screenshots/
+.project-conventions/runtime/
+*.sqlite3
+*.sqlite3-journal
+
+# 测试与临时产物
+test-results/
+*.tsbuildinfo

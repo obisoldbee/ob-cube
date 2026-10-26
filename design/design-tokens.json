@@ -1,0 +1,1623 @@
+{
+  "$description": "cube-challenge 设计 Token · 深色竞技风 · 三级架构 Primitive → Semantic → Component。本文件是全项目唯一 Token 源，前端 import 后由构建脚本生成 CSS 变量。",
+  "$version": "1.0.0",
+  "$designer": "颜好看",
+  "$phase": "Phase 1",
+  "primitive": {
+    "$description": "原始值层（A1-identity + A1-structure）。组件禁止直接引用本层，只能走 semantic / component。",
+    "grey": {
+      "0": {
+        "value": "#08090C",
+        "type": "color",
+        "$description": "L* 2.47 sunken"
+      },
+      "1": {
+        "value": "#0D1015",
+        "type": "color",
+        "$description": "L* 4.61 page"
+      },
+      "2": {
+        "value": "#141922",
+        "type": "color",
+        "$description": "L* 8.65 panel"
+      },
+      "3": {
+        "value": "#1B222C",
+        "type": "color",
+        "$description": "L* 12.98 card"
+      },
+      "4": {
+        "value": "#252D3A",
+        "type": "color",
+        "$description": "L* 18.26 float"
+      },
+      "5": {
+        "value": "#2A3341",
+        "type": "color",
+        "$description": "border-subtle"
+      },
+      "6": {
+        "value": "#3D4A5C",
+        "type": "color",
+        "$description": "border"
+      },
+      "7": {
+        "value": "#64748C",
+        "type": "color",
+        "$description": "border-control 3.37:1"
+      },
+      "8": {
+        "value": "#F2F6FA",
+        "type": "color",
+        "$description": "fg 16.22:1 on panel"
+      },
+      "9": {
+        "value": "#C4CEDA",
+        "type": "color",
+        "$description": "fg-2 11.06:1"
+      },
+      "10": {
+        "value": "#8D99A9",
+        "type": "color",
+        "$description": "fg-3 6.09:1"
+      },
+      "11": {
+        "value": "#6B7686",
+        "type": "color",
+        "$description": "fg-disabled 3.83:1"
+      }
+    },
+    "cyan": {
+      "400": {
+        "value": "#1ED0C0",
+        "type": "color",
+        "$description": "9.09:1 on panel"
+      },
+      "500": {
+        "value": "#17B5A8",
+        "type": "color"
+      },
+      "600": {
+        "value": "#109488",
+        "type": "color"
+      }
+    },
+    "white": {
+      "cta": {
+        "value": "#EDF1F5",
+        "type": "color"
+      },
+      "cta-h": {
+        "value": "#FFFFFF",
+        "type": "color"
+      }
+    },
+    "green-ok": {
+      "value": "#3FD07A",
+      "type": "color"
+    },
+    "amber-warn": {
+      "value": "#F0B429",
+      "type": "color"
+    },
+    "red-bad": {
+      "value": "#FF5D57",
+      "type": "color"
+    },
+    "blue-live": {
+      "value": "#7AB8FF",
+      "type": "color"
+    },
+    "cube": {
+      "U": {
+        "value": "#F4F7FB",
+        "type": "color",
+        "$description": "上·白 L*97.11 17.98:1"
+      },
+      "D": {
+        "value": "#F5C93C",
+        "type": "color",
+        "$description": "下·黄 L*82.66 12.24:1"
+      },
+      "F": {
+        "value": "#3DCE80",
+        "type": "color",
+        "$description": "前·绿 L*73.99 9.51:1"
+      },
+      "L": {
+        "value": "#F5821F",
+        "type": "color",
+        "$description": "左·橙 L*66.12 7.45:1"
+      },
+      "B": {
+        "value": "#5484EC",
+        "type": "color",
+        "$description": "后·蓝 L*56.53 5.42:1"
+      },
+      "R": {
+        "value": "#CB3A36",
+        "type": "color",
+        "$description": "右·红 L*46.97 3.86:1"
+      },
+      "body": {
+        "value": "#080A0D",
+        "type": "color"
+      },
+      "stage": {
+        "value": "#0B0E14",
+        "type": "color"
+      },
+      "dust-base": {
+        "value": "#2B323C",
+        "type": "color",
+        "$description": "蒙尘遮蔽色 L*20.52。AC-16 探针判定的被测指标：vs 6 个贴纸色 ΔE≥20（实测最差 63.85 vs B 蓝），遮蔽材质必须 unlit+NoToneMapping 才能让「探针 vs 本值」ΔE≤2。调整时必须先测它与 --cube-B 的距离（冷蓝遮蔽色 vs 蓝贴纸是最危险的一对）。对 --bg-stage 仅 1.49:1 是刻意压低；已批准 fallback = #3A4152（1.89:1，ΔE 最差 56.48）。"
+      },
+      "sticker-edge": {
+        "value": "rgba(255,255,255,0.10)",
+        "type": "color"
+      },
+      "mono-U": {
+        "value": "#F4F7FB",
+        "type": "color",
+        "$description": "色觉辅助单色模式"
+      },
+      "mono-D": {
+        "value": "#D6D9DD",
+        "type": "color"
+      },
+      "mono-F": {
+        "value": "#B4B8BD",
+        "type": "color"
+      },
+      "mono-L": {
+        "value": "#91969C",
+        "type": "color"
+      },
+      "mono-B": {
+        "value": "#71767C",
+        "type": "color"
+      },
+      "mono-R": {
+        "value": "#52575E",
+        "type": "color"
+      }
+    }
+  },
+  "semantic": {
+    "$description": "语义层（A2）。",
+    "color": {
+      "bg": {
+        "value": "{primitive.grey.1}",
+        "type": "color"
+      },
+      "bg-sunken": {
+        "value": "{primitive.grey.0}",
+        "type": "color"
+      },
+      "bg-panel": {
+        "value": "{primitive.grey.2}",
+        "type": "color"
+      },
+      "bg-card": {
+        "value": "{primitive.grey.3}",
+        "type": "color"
+      },
+      "bg-float": {
+        "value": "{primitive.grey.4}",
+        "type": "color"
+      },
+      "bg-stage": {
+        "value": "{primitive.cube.stage}",
+        "type": "color"
+      },
+      "fg": {
+        "value": "{primitive.grey.8}",
+        "type": "color"
+      },
+      "fg-2": {
+        "value": "{primitive.grey.9}",
+        "type": "color"
+      },
+      "fg-3": {
+        "value": "{primitive.grey.10}",
+        "type": "color"
+      },
+      "fg-disabled": {
+        "value": "{primitive.grey.11}",
+        "type": "color"
+      },
+      "border-subtle": {
+        "value": "{primitive.grey.5}",
+        "type": "color"
+      },
+      "border": {
+        "value": "{primitive.grey.6}",
+        "type": "color"
+      },
+      "border-control": {
+        "value": "{primitive.grey.7}",
+        "type": "color"
+      },
+      "accent": {
+        "value": "{primitive.cyan.400}",
+        "type": "color"
+      },
+      "accent-hover": {
+        "value": "{primitive.cyan.500}",
+        "type": "color"
+      },
+      "accent-active": {
+        "value": "{primitive.cyan.600}",
+        "type": "color"
+      },
+      "accent-soft": {
+        "value": "rgba(30,208,192,0.12)",
+        "type": "color"
+      },
+      "accent-ring": {
+        "value": "rgba(30,208,192,0.40)",
+        "type": "color"
+      },
+      "action": {
+        "value": "{primitive.white.cta}",
+        "type": "color"
+      },
+      "action-hover": {
+        "value": "{primitive.white.cta-h}",
+        "type": "color"
+      },
+      "action-on": {
+        "value": "{primitive.grey.0}",
+        "type": "color"
+      },
+      "success": {
+        "value": "{primitive.green-ok}",
+        "type": "color"
+      },
+      "warn": {
+        "value": "{primitive.amber-warn}",
+        "type": "color"
+      },
+      "danger": {
+        "value": "{primitive.red-bad}",
+        "type": "color"
+      },
+      "live": {
+        "value": "{primitive.blue-live}",
+        "type": "color"
+      },
+      "success-soft": {
+        "value": "rgba(63,208,122,0.12)",
+        "type": "color"
+      },
+      "warn-soft": {
+        "value": "rgba(240,180,41,0.12)",
+        "type": "color"
+      },
+      "danger-soft": {
+        "value": "rgba(255,93,87,0.12)",
+        "type": "color"
+      }
+    },
+    "font": {
+      "display": {
+        "value": "Barlow Semi Condensed, Noto Sans SC, PingFang SC, Microsoft YaHei, sans-serif",
+        "type": "fontFamily"
+      },
+      "body": {
+        "value": "Barlow, Noto Sans SC, PingFang SC, Microsoft YaHei, sans-serif",
+        "type": "fontFamily"
+      },
+      "mono": {
+        "value": "JetBrains Mono, SF Mono, Cascadia Mono, ui-monospace, monospace",
+        "type": "fontFamily"
+      }
+    },
+    "size": {
+      "xs": {
+        "value": "11px",
+        "type": "dimension"
+      },
+      "sm": {
+        "value": "12px",
+        "type": "dimension"
+      },
+      "base": {
+        "value": "14px",
+        "type": "dimension"
+      },
+      "md": {
+        "value": "16px",
+        "type": "dimension"
+      },
+      "lg": {
+        "value": "20px",
+        "type": "dimension"
+      },
+      "xl": {
+        "value": "28px",
+        "type": "dimension"
+      },
+      "2xl": {
+        "value": "40px",
+        "type": "dimension"
+      },
+      "3xl": {
+        "value": "56px",
+        "type": "dimension"
+      }
+    },
+    "leading": {
+      "tight": {
+        "value": 1.15,
+        "type": "number"
+      },
+      "snug": {
+        "value": 1.35,
+        "type": "number"
+      },
+      "body": {
+        "value": 1.55,
+        "type": "number"
+      },
+      "loose": {
+        "value": 1.7,
+        "type": "number"
+      }
+    },
+    "tracking": {
+      "display": {
+        "value": "-0.02em",
+        "type": "dimension"
+      },
+      "tight": {
+        "value": "-0.01em",
+        "type": "dimension"
+      },
+      "body": {
+        "value": "0",
+        "type": "dimension"
+      },
+      "caps": {
+        "value": "0.08em",
+        "type": "dimension"
+      },
+      "mono": {
+        "value": "-0.01em",
+        "type": "dimension"
+      }
+    },
+    "weight": {
+      "read": {
+        "value": 400,
+        "type": "number"
+      },
+      "emphasize": {
+        "value": 500,
+        "type": "number"
+      },
+      "announce": {
+        "value": 600,
+        "type": "number"
+      }
+    },
+    "space": {
+      "1": {
+        "value": "4px",
+        "type": "dimension"
+      },
+      "2": {
+        "value": "8px",
+        "type": "dimension"
+      },
+      "3": {
+        "value": "12px",
+        "type": "dimension"
+      },
+      "4": {
+        "value": "16px",
+        "type": "dimension"
+      },
+      "5": {
+        "value": "20px",
+        "type": "dimension"
+      },
+      "6": {
+        "value": "24px",
+        "type": "dimension"
+      },
+      "8": {
+        "value": "32px",
+        "type": "dimension"
+      },
+      "10": {
+        "value": "40px",
+        "type": "dimension"
+      },
+      "12": {
+        "value": "48px",
+        "type": "dimension"
+      },
+      "16": {
+        "value": "64px",
+        "type": "dimension"
+      }
+    },
+    "radius": {
+      "sm": {
+        "value": "4px",
+        "type": "dimension"
+      },
+      "md": {
+        "value": "6px",
+        "type": "dimension"
+      },
+      "lg": {
+        "value": "10px",
+        "type": "dimension"
+      },
+      "xl": {
+        "value": "14px",
+        "type": "dimension"
+      },
+      "pill": {
+        "value": "9999px",
+        "type": "dimension"
+      }
+    },
+    "elevation": {
+      "0": {
+        "value": "none",
+        "type": "shadow"
+      },
+      "1": {
+        "value": "0 0 0 1px #2A3341",
+        "type": "shadow"
+      },
+      "2": {
+        "value": "0 0 0 1px #3D4A5C, 0 12px 32px -8px rgba(0,0,0,0.55)",
+        "type": "shadow"
+      },
+      "3": {
+        "value": "0 0 0 1px #3D4A5C, 0 24px 56px -12px rgba(0,0,0,0.70)",
+        "type": "shadow"
+      },
+      "inset-top": {
+        "value": "inset 0 1px 0 rgba(255,255,255,0.08)",
+        "type": "shadow"
+      }
+    },
+    "z": {
+      "base": {
+        "value": 0,
+        "type": "number"
+      },
+      "stage-hud": {
+        "value": 10,
+        "type": "number"
+      },
+      "sticky": {
+        "value": 100,
+        "type": "number"
+      },
+      "dropdown": {
+        "value": 200,
+        "type": "number"
+      },
+      "popover": {
+        "value": 300,
+        "type": "number"
+      },
+      "modal": {
+        "value": 400,
+        "type": "number"
+      },
+      "toast": {
+        "value": 500,
+        "type": "number"
+      },
+      "dev": {
+        "value": 600,
+        "type": "number"
+      }
+    },
+    "duration": {
+      "instant": {
+        "value": "80ms",
+        "type": "duration"
+      },
+      "fast": {
+        "value": "120ms",
+        "type": "duration"
+      },
+      "base": {
+        "value": "150ms",
+        "type": "duration",
+        "$description": "全局收敛值"
+      },
+      "slow": {
+        "value": "220ms",
+        "type": "duration"
+      },
+      "enter": {
+        "value": "260ms",
+        "type": "duration"
+      },
+      "turn": {
+        "value": "200ms",
+        "type": "duration",
+        "$description": "魔方层转动，可配 120-320ms"
+      },
+      "scene": {
+        "value": "400ms",
+        "type": "duration"
+      },
+      "cinema": {
+        "value": "600ms",
+        "type": "duration",
+        "$description": "仅蒙尘解锁，全局唯一超 500ms"
+      }
+    },
+    "easing": {
+      "standard": {
+        "value": "cubic-bezier(0.2, 0, 0, 1)",
+        "type": "cubicBezier"
+      },
+      "out": {
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "type": "cubicBezier"
+      },
+      "in": {
+        "value": "cubic-bezier(0.4, 0, 1, 1)",
+        "type": "cubicBezier"
+      },
+      "inout": {
+        "value": "cubic-bezier(0.65, 0, 0.35, 1)",
+        "type": "cubicBezier"
+      }
+    },
+    "layout": {
+      "container-max": {
+        "value": "1920px",
+        "type": "dimension"
+      },
+      "col-left": {
+        "value": "340px",
+        "type": "dimension"
+      },
+      "col-right": {
+        "value": "392px",
+        "type": "dimension"
+      },
+      "col-left-md": {
+        "value": "300px",
+        "type": "dimension"
+      },
+      "col-right-md": {
+        "value": "352px",
+        "type": "dimension"
+      },
+      "col-left-sm": {
+        "value": "264px",
+        "type": "dimension"
+      },
+      "col-right-sm": {
+        "value": "312px",
+        "type": "dimension"
+      },
+      "stage-min-h": {
+        "value": "420px",
+        "type": "dimension"
+      },
+      "touch-min": {
+        "value": "44px",
+        "type": "dimension"
+      }
+    }
+  },
+  "component": {
+    "$description": "组件层（B-slot + C-extension）。仅此层允许被页面直接引用。",
+    "button": {
+      "action": {
+        "bg": {
+          "value": "{semantic.color.action}",
+          "type": "color"
+        },
+        "bg-hover": {
+          "value": "{semantic.color.action-hover}",
+          "type": "color"
+        },
+        "fg": {
+          "value": "{semantic.color.action-on}",
+          "type": "color"
+        },
+        "radius": {
+          "value": "{semantic.radius.md}",
+          "type": "dimension"
+        },
+        "height": {
+          "value": "40px",
+          "type": "dimension"
+        },
+        "pad-x": {
+          "value": "{semantic.space.4}",
+          "type": "dimension"
+        },
+        "font": {
+          "value": "{semantic.font.display}",
+          "type": "fontFamily"
+        },
+        "size": {
+          "value": "{semantic.size.base}",
+          "type": "dimension"
+        },
+        "tracking": {
+          "value": "{semantic.tracking.caps}",
+          "type": "dimension"
+        }
+      },
+      "secondary": {
+        "bg": {
+          "value": "transparent",
+          "type": "color"
+        },
+        "bg-hover": {
+          "value": "{semantic.color.bg-card}",
+          "type": "color"
+        },
+        "border": {
+          "value": "{semantic.color.border}",
+          "type": "color"
+        },
+        "fg": {
+          "value": "{semantic.color.fg}",
+          "type": "color"
+        },
+        "radius": {
+          "value": "{semantic.radius.md}",
+          "type": "dimension"
+        },
+        "height": {
+          "value": "36px",
+          "type": "dimension"
+        }
+      },
+      "ghost": {
+        "bg": {
+          "value": "transparent",
+          "type": "color"
+        },
+        "bg-hover": {
+          "value": "{semantic.color.bg-card}",
+          "type": "color"
+        },
+        "fg": {
+          "value": "{semantic.color.fg-2}",
+          "type": "color"
+        },
+        "fg-hover": {
+          "value": "{semantic.color.fg}",
+          "type": "color"
+        },
+        "radius": {
+          "value": "{semantic.radius.md}",
+          "type": "dimension"
+        },
+        "size": {
+          "value": "32px",
+          "type": "dimension"
+        }
+      },
+      "danger": {
+        "fg": {
+          "value": "{semantic.color.danger}",
+          "type": "color"
+        },
+        "border": {
+          "value": "{semantic.color.danger}",
+          "type": "color"
+        },
+        "bg-hover": {
+          "value": "{semantic.color.danger-soft}",
+          "type": "color"
+        },
+        "$description": "只做描边不做实心：实心红+白字仅 4.45:1 未达 4.5:1"
+      },
+      "turn": {
+        "bg": {
+          "value": "{semantic.color.bg-card}",
+          "type": "color"
+        },
+        "bg-hover": {
+          "value": "{primitive.grey.4}",
+          "type": "color"
+        },
+        "fg": {
+          "value": "{semantic.color.fg}",
+          "type": "color"
+        },
+        "border": {
+          "value": "{semantic.color.border-subtle}",
+          "type": "color"
+        },
+        "bg-active": {
+          "value": "{semantic.color.accent-soft}",
+          "type": "color"
+        },
+        "fg-active": {
+          "value": "{semantic.color.accent}",
+          "type": "color"
+        },
+        "radius": {
+          "value": "{semantic.radius.md}",
+          "type": "dimension"
+        },
+        "height": {
+          "value": "40px",
+          "type": "dimension"
+        },
+        "width": {
+          "value": "56px",
+          "type": "dimension"
+        },
+        "font": {
+          "value": "{semantic.font.mono}",
+          "type": "fontFamily"
+        },
+        "size": {
+          "value": "{semantic.size.base}",
+          "type": "dimension"
+        },
+        "width-wide": {
+          "value": "64px",
+          "type": "dimension",
+          "$description": "5 字符标签（3Rw') 激活时；不缩字号"
+        }
+      }
+    },
+    "faceCard": {
+      "bg": {
+        "value": "transparent",
+        "type": "color"
+      },
+      "border": {
+        "value": "{semantic.color.border-subtle}",
+        "type": "color"
+      },
+      "radius": {
+        "value": "{semantic.radius.lg}",
+        "type": "dimension"
+      },
+      "pad": {
+        "value": "{semantic.space.2}",
+        "type": "dimension"
+      },
+      "gap": {
+        "value": "{semantic.space.1}",
+        "type": "dimension"
+      }
+    },
+    "kbdLegacy": {
+      "$deprecated": "被 component.kbd 取代（后者含三态语法：实心键帽 / 空心前缀 / ×2 后缀）。保留仅为向后兼容，Phase 3 不得引用。",
+      "bg": {
+        "value": "{semantic.color.bg-sunken}",
+        "type": "color"
+      },
+      "fg": {
+        "value": "{semantic.color.fg-3}",
+        "type": "color"
+      },
+      "fg-hover": {
+        "value": "{semantic.color.fg}",
+        "type": "color"
+      },
+      "border": {
+        "value": "{semantic.color.border-subtle}",
+        "type": "color"
+      },
+      "radius": {
+        "value": "{semantic.radius.sm}",
+        "type": "dimension"
+      },
+      "size": {
+        "value": "{semantic.size.xs}",
+        "type": "dimension"
+      },
+      "font": {
+        "value": "{semantic.font.mono}",
+        "type": "fontFamily"
+      }
+    },
+    "input": {
+      "bg": {
+        "value": "{semantic.color.bg-sunken}",
+        "type": "color"
+      },
+      "fg": {
+        "value": "{semantic.color.fg}",
+        "type": "color"
+      },
+      "placeholder": {
+        "value": "{semantic.color.fg-3}",
+        "type": "color"
+      },
+      "border": {
+        "value": "{semantic.color.border-control}",
+        "type": "color"
+      },
+      "border-focus": {
+        "value": "{semantic.color.accent}",
+        "type": "color"
+      },
+      "ring-focus": {
+        "value": "0 0 0 3px rgba(30,208,192,0.40)",
+        "type": "shadow"
+      },
+      "border-error": {
+        "value": "{semantic.color.danger}",
+        "type": "color"
+      },
+      "ring-error": {
+        "value": "0 0 0 3px rgba(255,93,87,0.12)",
+        "type": "shadow"
+      },
+      "bg-disabled": {
+        "value": "{semantic.color.bg-panel}",
+        "type": "color"
+      },
+      "fg-disabled": {
+        "value": "{semantic.color.fg-disabled}",
+        "type": "color"
+      },
+      "radius": {
+        "value": "{semantic.radius.md}",
+        "type": "dimension"
+      },
+      "height": {
+        "value": "36px",
+        "type": "dimension"
+      }
+    },
+    "badge": {
+      "pending": {
+        "bg": {
+          "value": "{primitive.grey.3}",
+          "type": "color"
+        },
+        "fg": {
+          "value": "{semantic.color.fg-2}",
+          "type": "color"
+        }
+      },
+      "running": {
+        "bg": {
+          "value": "{semantic.color.accent-soft}",
+          "type": "color"
+        },
+        "fg": {
+          "value": "{semantic.color.accent}",
+          "type": "color"
+        }
+      },
+      "paused": {
+        "bg": {
+          "value": "{semantic.color.warn-soft}",
+          "type": "color"
+        },
+        "fg": {
+          "value": "{semantic.color.warn}",
+          "type": "color"
+        }
+      },
+      "failed": {
+        "bg": {
+          "value": "{semantic.color.danger-soft}",
+          "type": "color"
+        },
+        "fg": {
+          "value": "{semantic.color.danger}",
+          "type": "color"
+        }
+      },
+      "solved": {
+        "bg": {
+          "value": "{semantic.color.success-soft}",
+          "type": "color"
+        },
+        "fg": {
+          "value": "{semantic.color.success}",
+          "type": "color"
+        }
+      }
+    },
+    "timer": {
+      "fg": {
+        "value": "{semantic.color.fg}",
+        "type": "color"
+      },
+      "fg-warning": {
+        "value": "{semantic.color.warn}",
+        "type": "color",
+        "$description": "剩余 ≤60s"
+      },
+      "fg-critical": {
+        "value": "{semantic.color.danger}",
+        "type": "color",
+        "$description": "剩余 ≤10s"
+      },
+      "fg-timeout": {
+        "value": "{semantic.color.danger}",
+        "type": "color"
+      },
+      "int-size": {
+        "value": "{semantic.size.2xl}",
+        "type": "dimension"
+      },
+      "frac-size": {
+        "value": "{semantic.size.lg}",
+        "type": "dimension"
+      },
+      "min-width": {
+        "value": "7ch",
+        "type": "dimension"
+      },
+      "font": {
+        "value": "{semantic.font.mono}",
+        "type": "fontFamily"
+      },
+      "feature": {
+        "value": "tabular-nums",
+        "type": "string"
+      }
+    },
+    "log": {
+      "bg": {
+        "value": "{semantic.color.bg-sunken}",
+        "type": "color"
+      },
+      "row-height": {
+        "value": "28px",
+        "type": "dimension"
+      },
+      "divider": {
+        "value": "{semantic.color.border-subtle}",
+        "type": "color"
+      },
+      "idx-fg": {
+        "value": "{semantic.color.fg-3}",
+        "type": "color"
+      },
+      "move-fg": {
+        "value": "{semantic.color.fg}",
+        "type": "color"
+      },
+      "meta-fg": {
+        "value": "{semantic.color.fg-3}",
+        "type": "color"
+      },
+      "ok-fg": {
+        "value": "{semantic.color.success}",
+        "type": "color"
+      },
+      "bad-fg": {
+        "value": "{semantic.color.danger}",
+        "type": "color"
+      },
+      "flash": {
+        "value": "{semantic.color.accent-soft}",
+        "type": "color"
+      },
+      "font": {
+        "value": "{semantic.font.mono}",
+        "type": "fontFamily"
+      },
+      "row-pending-opacity": {
+        "value": 0.55,
+        "type": "number",
+        "$description": "双击归并的待定行"
+      },
+      "pending-dot": {
+        "value": "{semantic.color.fg-3}",
+        "type": "color"
+      },
+      "pending-dot-done": {
+        "value": "{semantic.color.success}",
+        "type": "color"
+      },
+      "current-bg": {
+        "value": "{semantic.color.accent-soft}",
+        "type": "color",
+        "$description": "回放联动高亮整行底色（不用侧色条）"
+      }
+    },
+    "agent": {
+      "dot-idle": {
+        "value": "{semantic.color.fg-disabled}",
+        "type": "color"
+      },
+      "dot-ready": {
+        "value": "{semantic.color.live}",
+        "type": "color"
+      },
+      "dot-busy": {
+        "value": "{semantic.color.accent}",
+        "type": "color"
+      },
+      "dot-stale": {
+        "value": "{semantic.color.warn}",
+        "type": "color"
+      },
+      "dot-offline": {
+        "value": "{semantic.color.danger}",
+        "type": "color"
+      },
+      "dot-size": {
+        "value": "8px",
+        "type": "dimension"
+      },
+      "progress-h": {
+        "value": "1px",
+        "type": "dimension"
+      }
+    },
+    "dust": {
+      "mask-fill": {
+        "value": "rgba(11,14,20,0.86)",
+        "type": "color"
+      },
+      "cta-shadow": {
+        "value": "0 8px 32px rgba(0,0,0,0.60)",
+        "type": "shadow"
+      },
+      "grain": {
+        "value": 0,
+        "type": "number",
+        "$deprecated": "已作废。PRD AC-16 的确定性探针要求探针像素 vs --cube-masked 的 ΔE ≤ 2，任何噪点都会产生中间色使探针偏离。禁止读取。"
+      },
+      "roughness": {
+        "value": 0,
+        "type": "number",
+        "$deprecated": "已作废。蒙尘态必须 unlit，不走 PBR。禁止读取。"
+      },
+      "$executable": "AC-16 可执行口径（唯一）：探针点 = 每可见面中心 1 点 + 每面 4 个内缩点（内缩 = 投影包围盒 25%），由 CubeView.getProbePoints() 提供；断言 ① 探针像素 vs --cube-masked 的 ΔE ≤ 2，② vs 6 个贴纸色任一的 ΔE ≥ 20。2D 降级视图用 6 个网格面中心。旧口径「中心 80% 区域内除背景外颜色种类 ≤2」已被 PRD v1.5 废止（MSAA 边缘过渡色使其恒假）。见 docs/specs/execution/ui-visual.md §6.6",
+      "$toneMapping": "NoToneMapping / 对该材质禁用，否则 AC-16 断言① 必挂"
+    },
+    "layerOutline": {
+      "$description": "画布内唯一允许的 accent 元素（当前转动层描边）。UIUX.md 5.3 L2",
+      "outline": {
+        "value": "{semantic.color.accent}",
+        "type": "color"
+      },
+      "outline-hover": {
+        "value": "rgba(30,208,192,0.30)",
+        "type": "color"
+      },
+      "pending-opacity": {
+        "value": 0.6,
+        "type": "number"
+      },
+      "width": {
+        "value": "2px",
+        "type": "dimension",
+        "$description": "屏幕空间恒定，不随缩放"
+      },
+      "fade": {
+        "value": "{semantic.duration.fast}",
+        "type": "duration"
+      },
+      "dim-neighbor": {
+        "value": 0.96,
+        "type": "number"
+      }
+    },
+    "kbd": {
+      "key-bg": {
+        "value": "{semantic.color.bg-sunken}",
+        "type": "color"
+      },
+      "key-fg": {
+        "value": "{semantic.color.fg-3}",
+        "type": "color"
+      },
+      "key-fg-hover": {
+        "value": "{semantic.color.fg}",
+        "type": "color"
+      },
+      "key-border": {
+        "value": "{semantic.color.border-subtle}",
+        "type": "color"
+      },
+      "prefix-bg": {
+        "value": "transparent",
+        "type": "color",
+        "$description": "空心，与实心键帽形成填/空对比"
+      },
+      "prefix-fg": {
+        "value": "{semantic.color.fg-3}",
+        "type": "color"
+      },
+      "prefix-border": {
+        "value": "{semantic.color.border}",
+        "type": "color"
+      },
+      "mod-gap": {
+        "value": "0px",
+        "type": "dimension",
+        "$description": "Shift 紧贴 = 同时按"
+      },
+      "prefix-gap": {
+        "value": "2px",
+        "type": "dimension",
+        "$description": "前缀分离 = 先按后按"
+      },
+      "repeat-fg": {
+        "value": "{semantic.color.fg-3}",
+        "type": "color",
+        "$description": "×2 双击后缀"
+      },
+      "radius": {
+        "value": "{semantic.radius.sm}",
+        "type": "dimension"
+      },
+      "size": {
+        "value": "{semantic.size.xs}",
+        "type": "dimension"
+      },
+      "font": {
+        "value": "{semantic.font.mono}",
+        "type": "fontFamily"
+      }
+    },
+    "statusbar": {
+      "fg": {
+        "value": "{semantic.color.fg-3}",
+        "type": "color"
+      },
+      "fg-active": {
+        "value": "{semantic.color.fg}",
+        "type": "color"
+      },
+      "merged-fg": {
+        "value": "{semantic.color.accent}",
+        "type": "color"
+      },
+      "height": {
+        "value": "44px",
+        "type": "dimension"
+      },
+      "font": {
+        "value": "{semantic.font.mono}",
+        "type": "fontFamily"
+      }
+    },
+    "hud": {
+      "bg": {
+        "value": "transparent",
+        "type": "color"
+      },
+      "bg-hover": {
+        "value": "{semantic.color.bg-card}",
+        "type": "color"
+      },
+      "fg": {
+        "value": "{semantic.color.fg-2}",
+        "type": "color"
+      },
+      "border": {
+        "value": "{semantic.color.border-subtle}",
+        "type": "color"
+      },
+      "orbit-size": {
+        "value": "32px",
+        "type": "dimension"
+      },
+      "faceview-w": {
+        "value": "44px",
+        "type": "dimension"
+      },
+      "faceview-h": {
+        "value": "26px",
+        "type": "dimension"
+      },
+      "faceview-active-bg": {
+        "value": "{semantic.color.accent-soft}",
+        "type": "color"
+      },
+      "faceview-active-fg": {
+        "value": "{semantic.color.accent}",
+        "type": "color"
+      }
+    },
+    "slot": {
+      "$description": "层选择器的「起层 / 止层」chip。UIUX 4.5H（AC-40 已收窄为连续层区间）",
+      "bg": {
+        "value": "transparent",
+        "type": "color"
+      },
+      "fg": {
+        "value": "{semantic.color.fg-2}",
+        "type": "color"
+      },
+      "border": {
+        "value": "{semantic.color.border}",
+        "type": "color"
+      },
+      "bg-checked": {
+        "value": "{semantic.color.accent-soft}",
+        "type": "color"
+      },
+      "fg-checked": {
+        "value": "{semantic.color.accent}",
+        "type": "color"
+      },
+      "border-checked": {
+        "value": "{semantic.color.accent}",
+        "type": "color"
+      },
+      "size": {
+        "value": "28px",
+        "type": "dimension"
+      },
+      "radius": {
+        "value": "{semantic.radius.sm}",
+        "type": "dimension"
+      },
+      "$rangeRule": "止层恒 ≥ 起层；起=1 且 止=N 即全层，止层第 N 项 disabled"
+    },
+    "result": {
+      "$description": "右栏结果面板。PRD 9.1 五区块",
+      "verdict-size": {
+        "value": "{semantic.size.xl}",
+        "type": "dimension"
+      },
+      "sub-fg": {
+        "value": "{semantic.color.fg-3}",
+        "type": "color"
+      },
+      "metric-label-fg": {
+        "value": "{semantic.color.fg-3}",
+        "type": "color"
+      },
+      "metric-value-fg": {
+        "value": "{semantic.color.fg}",
+        "type": "color"
+      },
+      "metric-value-size": {
+        "value": "{semantic.size.xl}",
+        "type": "dimension"
+      },
+      "metric-divider": {
+        "value": "{semantic.color.border-subtle}",
+        "type": "color"
+      },
+      "compare-fg": {
+        "value": "{semantic.color.fg-3}",
+        "type": "color"
+      },
+      "section-gap": {
+        "value": "{semantic.space.5}",
+        "type": "dimension"
+      }
+    },
+    "disclosure": {
+      "$description": "诚实标注。PRD 9.2 / C5",
+      "fg": {
+        "value": "{semantic.color.fg-3}",
+        "type": "color"
+      },
+      "size": {
+        "value": "{semantic.size.xs}",
+        "type": "dimension"
+      },
+      "leading": {
+        "value": "{semantic.leading.body}",
+        "type": "number"
+      },
+      "divider": {
+        "value": "{semantic.color.border-subtle}",
+        "type": "color"
+      },
+      "gap": {
+        "value": "{semantic.space.2}",
+        "type": "dimension"
+      }
+    },
+    "attempt": {
+      "$description": "提交机会圆点。PRD 7.3：连续 3 次失败终止",
+      "dot-size": {
+        "value": "6px",
+        "type": "dimension"
+      },
+      "dot-idle": {
+        "value": "{semantic.color.border}",
+        "type": "color"
+      },
+      "dot-used": {
+        "value": "{semantic.color.danger}",
+        "type": "color"
+      }
+    },
+    "focus": {
+      "ring": {
+        "value": "0 0 0 2px #141922, 0 0 0 4px #1ED0C0",
+        "type": "shadow"
+      },
+      "ring-inset": {
+        "value": "inset 0 0 0 2px #1ED0C0",
+        "type": "shadow"
+      },
+      "outline": {
+        "value": "2px solid #1ED0C0",
+        "type": "string"
+      },
+      "offset": {
+        "value": "2px",
+        "type": "dimension"
+      }
+    },
+    "header": {
+      "height": {
+        "value": "64px",
+        "type": "dimension"
+      },
+      "row-height": {
+        "value": "32px",
+        "type": "dimension"
+      }
+    },
+    "layerSelector": {
+      "$description": "1 个控件。AC-40 的正式完备机制：轴(6选1) + 起层 + 止层 + 预览 + 3 转向键（UIUX 4.5H）",
+      "height": {
+        "value": "28px",
+        "type": "dimension"
+      },
+      "bg": {
+        "value": "{semantic.color.bg-card}",
+        "type": "color"
+      },
+      "fg": {
+        "value": "{semantic.color.fg-2}",
+        "type": "color"
+      },
+      "fg-active": {
+        "value": "{semantic.color.fg}",
+        "type": "color"
+      },
+      "border": {
+        "value": "{semantic.color.border-subtle}",
+        "type": "color"
+      },
+      "bg-manual": {
+        "value": "{semantic.color.accent-soft}",
+        "type": "color",
+        "$description": "手动层态：tab 全不高亮"
+      },
+      "fg-manual": {
+        "value": "{semantic.color.accent}",
+        "type": "color"
+      },
+      "previewSource": {
+        "value": "describeMove(axis, layerSet, amount)",
+        "type": "string",
+        "$description": "UI 不得自行拼接字符串"
+      }
+    },
+    "pause": {
+      "$description": "PRD 7.2.1：计时不暂停，只屏蔽输入（UIUX 7.7）",
+      "stage-veil": {
+        "value": "rgba(13,16,21,0.20)",
+        "type": "color",
+        "$description": "20%，不可加重：暂停不收回题面"
+      },
+      "stage-dim": {
+        "value": 0.4,
+        "type": "number"
+      },
+      "banner-bg": {
+        "value": "rgba(37,45,58,0.92)",
+        "type": "color"
+      },
+      "banner-title-fg": {
+        "value": "{semantic.color.fg}",
+        "type": "color"
+      },
+      "flag-fg": {
+        "value": "{semantic.color.warn}",
+        "type": "color",
+        "$description": "『计时仍在进行』这一行"
+      },
+      "timer-fg": {
+        "value": "{semantic.color.fg}",
+        "type": "color",
+        "$description": "paused 态数字不变色"
+      },
+      "tag-bg": {
+        "value": "{semantic.color.warn-soft}",
+        "type": "color"
+      },
+      "tag-fg": {
+        "value": "{semantic.color.warn}",
+        "type": "color"
+      }
+    },
+    "replay": {
+      "$description": "PRD 10 / UIUX 11",
+      "bar-height": {
+        "value": "56px",
+        "type": "dimension"
+      },
+      "track-bg": {
+        "value": "{semantic.color.bg-card}",
+        "type": "color"
+      },
+      "track-fill": {
+        "value": "{semantic.color.accent}",
+        "type": "color"
+      },
+      "thumb-size": {
+        "value": "12px",
+        "type": "dimension"
+      },
+      "mark-move": {
+        "value": "{semantic.color.fg-disabled}",
+        "type": "color"
+      },
+      "mark-obs": {
+        "value": "{semantic.color.accent}",
+        "type": "color"
+      },
+      "mark-pause": {
+        "value": "{semantic.color.warn}",
+        "type": "color"
+      },
+      "diff-outline": {
+        "value": "{semantic.color.warn}",
+        "type": "color"
+      }
+    }
+  },
+  "alias": {
+    "$description": "架构层别名（ARCHITECTURE.md 8.7 / 9.1 指定的全部 Token 名）。架构要求「色值只在 ui/tokens.css 出现一次」，故此处为架构指定的每个名字提供一等别名，两份文档不产生第二处色值定义。primitive/semantic 是超集，UI 层以它们为准。",
+    "cube-face-u": {
+      "value": "{primitive.cube.U}",
+      "type": "color"
+    },
+    "cube-face-d": {
+      "value": "{primitive.cube.D}",
+      "type": "color"
+    },
+    "cube-face-f": {
+      "value": "{primitive.cube.F}",
+      "type": "color"
+    },
+    "cube-face-b": {
+      "value": "{primitive.cube.B}",
+      "type": "color"
+    },
+    "cube-face-r": {
+      "value": "{primitive.cube.R}",
+      "type": "color"
+    },
+    "cube-face-l": {
+      "value": "{primitive.cube.L}",
+      "type": "color"
+    },
+    "cube-body": {
+      "value": "{primitive.cube.body}",
+      "type": "color"
+    },
+    "cube-masked": {
+      "value": "{primitive.cube.dust-base}",
+      "type": "color",
+      "$description": "蒙尘遮蔽外观。PRD AC-16 规定它是 ready 态唯一允许的像素色"
+    },
+    "surface-canvas": {
+      "value": "{semantic.color.bg-stage}",
+      "type": "color"
+    },
+    "surface-panel": {
+      "value": "{semantic.color.bg-panel}",
+      "type": "color"
+    },
+    "text-primary": {
+      "value": "{semantic.color.fg}",
+      "type": "color"
+    },
+    "text-secondary": {
+      "value": "{semantic.color.fg-2}",
+      "type": "color"
+    },
+    "text-muted": {
+      "value": "{semantic.color.fg-3}",
+      "type": "color"
+    },
+    "accent-primary": {
+      "value": "{semantic.color.accent}",
+      "type": "color",
+      "$description": "仅用于「进行中 / 实时 / 选中 / focus」。*不是*主 CTA 填充色 —— 见 action-bg。理由见 UIUX.md 10"
+    },
+    "accent-success": {
+      "value": "{semantic.color.success}",
+      "type": "color"
+    },
+    "accent-warning": {
+      "value": "{semantic.color.warn}",
+      "type": "color"
+    },
+    "accent-danger": {
+      "value": "{semantic.color.danger}",
+      "type": "color"
+    },
+    "action-bg": {
+      "value": "{semantic.color.action}",
+      "type": "color",
+      "$description": "主 CTA 填充（白实心）。架构文档若把 accent-primary 当按钮色，请改用它"
+    },
+    "action-bg-hover": {
+      "value": "{semantic.color.action-hover}",
+      "type": "color"
+    },
+    "action-fg": {
+      "value": "{semantic.color.action-on}",
+      "type": "color"
+    },
+    "border-subtle": {
+      "value": "{semantic.color.border-subtle}",
+      "type": "color"
+    },
+    "border-strong": {
+      "value": "{semantic.color.border}",
+      "type": "color"
+    },
+    "border-control": {
+      "value": "{semantic.color.border-control}",
+      "type": "color",
+      "$description": "UI 层补充：承担 WCAG 1.4.11 控件边界 3:1，架构未定义"
+    },
+    "focus-ring": {
+      "value": "0 0 0 2px #141922, 0 0 0 4px #1ED0C0",
+      "type": "shadow"
+    },
+    "fg-disabled": {
+      "value": "{semantic.color.fg-disabled}",
+      "type": "color",
+      "$description": "UI 层补充：架构未定义禁用文本"
+    }
+  },
+  "meta": {
+    "cubeColorVerified": {
+      "$description": "六色实测指标（脚本 docs/research/_color-math.py 生成，可复算）",
+      "lStarLadder": [
+        97.11,
+        82.66,
+        73.99,
+        66.12,
+        56.53,
+        46.97
+      ],
+      "minPairwiseDeltaLStar": 7.87,
+      "minPairwiseDeltaE76": 40.0,
+      "minContrastOnStage": 3.86,
+      "deutanWorstPair": "D黄 / L橙 ΔE 14.8（靠 ΔL* 12.33 补偿）",
+      "protanWorstPair": "D黄 / L橙 ΔE 23.4",
+      "tritanWorstPair": "L橙 / R红 ΔE 24.3"
+    },
+    "textContrast": {
+      "fg-on-panel": 16.22,
+      "fg-2-on-panel": 11.06,
+      "fg-3-on-panel": 6.09,
+      "fg-disabled-on-panel": 3.83,
+      "fg-on-card": 14.74,
+      "fg-3-on-card": 5.54
+    },
+    "bgLStarLadder": {
+      "sunken": 2.47,
+      "page": 4.61,
+      "panel": 8.65,
+      "card": 12.98,
+      "float": 18.26
+    },
+    "bannedEasing": "一切带负值控制点的回弹/弹跳/弹性缓动（spring, bounce, elastic, back.out）；理由见 UIUX.md 2.7",
+    "iconLibrary": "lucide（候选，待架构师在 Spec 最终锁定一套）"
+  }
+}

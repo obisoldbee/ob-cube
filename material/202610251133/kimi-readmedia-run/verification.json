@@ -1,0 +1,14 @@
+{
+  "checks": {
+    "reader_count": false,
+    "exact_successful_reads": false,
+    "exact_transcript_reads": false,
+    "no_peer_tools": false,
+    "no_failed_tools": false,
+    "same_model": false,
+    "reports_completed": false,
+    "inputs_unchanged": true
+  },
+  "passed": false,
+  "agents": []
+}

@@ -1,0 +1,32 @@
+{
+  "readiness": "configured_not_called",
+  "provider_calls": "may_start",
+  "model": "MiniMax-M3.1-Flash",
+  "alias": "minimax-cn-coding-plan/MiniMax-M3.1-Flash",
+  "provider_type": "anthropic",
+  "base_url": "https://api.minimaxi.com/anthropic",
+  "capabilities": [
+    "image_in",
+    "thinking",
+    "tool_use"
+  ],
+  "state": "acceptance_unknown",
+  "mode": "single",
+  "max_context_size": 500000,
+  "max_output_size": 128000,
+  "observers": 1,
+  "started_at": "2026-10-26T00:34:50+0800",
+  "runtime_home": "C:\\Users\\34538\\AppData\\Local\\Temp\\kimi-readmedia-e1kz4q4w\\home",
+  "auto_resubmit": false,
+  "max_attempts_per_step": 1,
+  "executor_sha256": "c4d8e1a46d5e15431e29753dba67a1718e87470607390b2a07a1cd91addf7a1e",
+  "runtime_recovery_policy": "step_error_monitor_best_effort_abort",
+  "operation_fingerprint": "9fb96cae3f086d3f70507849f7f45573c95df93150e2a84c3ce5a3105767ca35",
+  "exit_code": 1,
+  "elapsed_seconds": 1.64,
+  "cli_version": null,
+  "stop_reason": null,
+  "contract_passed": false,
+  "retry_disposition": "never_auto_resubmit",
+  "failure_class": "incomplete_execution_or_contract_failure"
+}
