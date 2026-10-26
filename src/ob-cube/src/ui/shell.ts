@@ -40,6 +40,8 @@ export interface UiPorts {
   scramble(): void;
   resetCube(): void;
   applyTurn(intent: TurnIntent, merged: boolean): void;
+  /** F16（P1）：直接提交一条记法（如 `2Rw'`），与按钮/键盘共用同一提交点 */
+  applyNotation(raw: string): void;
   viewStep(step: ViewStep): void;
   viewReset(): void;
   faceView(face: FaceId): void;
@@ -75,6 +77,7 @@ const NOOP_PORTS: UiPorts = {
   scramble: () => undefined,
   resetCube: () => undefined,
   applyTurn: () => undefined,
+  applyNotation: () => undefined,
   viewStep: () => undefined,
   viewReset: () => undefined,
   faceView: () => undefined,
@@ -120,6 +123,8 @@ export class Workspace {
   private readonly sessionPanel: SessionPanel;
   private readonly matrix: TurnMatrix;
   private readonly statusBar: StatusBar;
+  private readonly notationForm: HTMLFormElement;
+  private readonly notationInput: HTMLInputElement;
   private readonly obsPanel: ObservationPanel;
   private readonly logPanel: LogPanel;
   private readonly agentPanel: AgentPanel;
@@ -163,6 +168,9 @@ export class Workspace {
     });
 
     this.statusBar = new StatusBar();
+    const notation = this.buildNotationForm();
+    this.notationForm = notation.form;
+    this.notationInput = notation.input;
     this.stage = new Stage({
       onScramble: () => this.ports.scramble(),
       onReset: () => this.ports.resetCube(),
@@ -211,6 +219,7 @@ export class Workspace {
       onViewStep: (step) => this.ports.viewStep(step),
       onViewReset: () => this.ports.viewReset(),
       onHelpToggle: () => this.overlay.toggle(),
+      onNotationFocus: () => this.focusNotation(),
       onAbandon: () => {
         if (this.overlay.isOpen()) {
           this.overlay.close();
@@ -396,10 +405,42 @@ export class Workspace {
     this.modal.querySelector<HTMLElement>('[data-role="confirm"]')?.focus();
   }
 
+  /** F16（P1）：记法输入框。Enter 提交；输入中的按键由键盘层放行给控件本身。 */
+  private buildNotationForm(): { form: HTMLFormElement; input: HTMLInputElement } {
+    const form = document.createElement('form');
+    form.className = 'notation';
+    form.setAttribute('aria-label', '记法输入');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'notation__input';
+    input.placeholder = '记法 e.g. R U2 2-3Rw';
+    input.maxLength = 32;
+    input.setAttribute('aria-label', '输入一条转动记法');
+    input.setAttribute('autocomplete', 'off');
+    input.setAttribute('spellcheck', 'false');
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.className = 'btn btn--secondary btn--sm';
+    submit.textContent = '执行';
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const raw = input.value.trim();
+      if (!raw) return;
+      this.ports.applyNotation(raw);
+    });
+    form.append(input, submit);
+    return { form, input };
+  }
+
+  focusNotation(): void {
+    this.notationInput.focus();
+    this.notationInput.select();
+  }
+
   private buildLayout(): void {
     const opHead = document.createElement('header');
     opHead.className = 'op-head';
-    opHead.append(this.matrix.tablist, this.statusBar.el);
+    opHead.append(this.matrix.tablist, this.statusBar.el, this.notationForm);
 
     const center = document.createElement('main');
     center.className = 'col col--stage';

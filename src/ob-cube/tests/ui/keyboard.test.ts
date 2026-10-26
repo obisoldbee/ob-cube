@@ -12,12 +12,13 @@ interface Harness {
   viewSteps: string[];
   helpToggles: number;
   abandons: number;
+  notationFocus: number;
 }
 
 function harness(size: CubeSize, status: 'ready' | 'running' = 'running', merge = true): Harness {
   const turns: TurnEvent[] = [];
   const signals: KeySignal[] = [];
-  const state = { started: 0, viewSteps: [] as string[], helpToggles: 0, abandons: 0 };
+  const state = { started: 0, viewSteps: [] as string[], helpToggles: 0, abandons: 0, notationFocus: 0 };
   const host: KeyboardHost = {
     size: () => size,
     canStart: () => status === 'ready',
@@ -35,6 +36,9 @@ function harness(size: CubeSize, status: 'ready' | 'running' = 'running', merge 
     },
     onAbandon: () => {
       state.abandons += 1;
+    },
+    onNotationFocus: () => {
+      state.notationFocus += 1;
     },
   };
   const controller = new KeyboardController(host);
@@ -54,6 +58,9 @@ function harness(size: CubeSize, status: 'ready' | 'running' = 'running', merge 
     },
     get abandons() {
       return state.abandons;
+    },
+    get notationFocus() {
+      return state.notationFocus;
     },
   };
 }
@@ -225,5 +232,26 @@ describe('AC-34：无 C 前缀', () => {
     expect(h.turns).toHaveLength(1);
     expect(h.turns[0].intent.layers).toEqual({ kind: 'outer' });
     h.controller.detach(window);
+  });
+});
+
+describe('F16 记法输入（F2）', () => {
+  it('按 F2 只聚焦输入框，不产生任何转动', () => {
+    const h = harness(3);
+    press('F2');
+    expect(h.notationFocus).toBe(1);
+    expect(h.turns).toHaveLength(0);
+  });
+
+  it('输入框内按键放行给控件本身，不触发转动/放弃', () => {
+    const h = harness(3);
+    const input = document.createElement('input');
+    document.body.append(input);
+    input.focus();
+    input.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyD', key: 'd', bubbles: true }));
+    expect(h.abandons).toBe(0);
+    expect(h.turns).toHaveLength(0);
+    input.remove();
   });
 });

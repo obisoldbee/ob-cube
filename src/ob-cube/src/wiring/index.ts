@@ -591,6 +591,15 @@ export function bootstrap(host: HTMLElement): void {
         markFirstMoveDone();
       });
     },
+    applyNotation(raw) {
+      guard(() => {
+        // F16：与按钮/键盘共用会话层的唯一提交点，动画在提交成功后再补
+        session.applyMoveNotation(raw);
+        const spec = parseMove(raw, session.size);
+        if (spec.kind === 'turn') animate(spec);
+        markFirstMoveDone();
+      });
+    },
     viewStep(step: ViewStep) {
       guard(() => {
         const next = session.stepView(step);

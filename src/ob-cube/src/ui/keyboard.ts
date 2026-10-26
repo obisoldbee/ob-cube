@@ -55,6 +55,8 @@ export interface KeyboardHost {
   onViewReset(): void;
   onHelpToggle(): void;
   onAbandon(): void;
+  /** F16（P1）：F2 聚焦记法输入框 */
+  onNotationFocus(): void;
 }
 
 export interface KeyboardState {
@@ -212,6 +214,13 @@ export class KeyboardController {
     if (event.code === 'Home') {
       event.preventDefault();
       this.host.onViewReset();
+      return;
+    }
+
+    // F16：F2 聚焦记法输入框（PRD §5.3.4；不使用 `/` 以避开 Firefox 快速查找）
+    if (event.code === 'F2') {
+      event.preventDefault();
+      this.host.onNotationFocus();
       return;
     }
 

@@ -1451,3 +1451,27 @@
   outline-offset: 2px;
   transition: outline-color 0.3s ease;
 }
+
+/* F16（P1）：记法输入框 —— 位于操作区头部，与状态栏同排 */
+.notation {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  margin-left: auto;
+}
+
+.notation__input {
+  width: 148px;
+  padding: 4px var(--space-2, 8px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-card);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs, 12px);
+}
+
+.notation__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
