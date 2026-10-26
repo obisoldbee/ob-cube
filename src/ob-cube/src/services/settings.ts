@@ -37,6 +37,8 @@ export interface AppSettings {
   /** 是否启用 300ms 双击归并 180°（PRD §5.4 缓解手段①，默认开启） */
   readonly mergeDoubleTap: boolean;
   readonly autoSubmitOnSolved: boolean;
+  /** PRD §11.1：本地使用统计（仅存本机、不外发），默认开 */
+  readonly telemetryEnabled: boolean;
 }
 
 export const DEFAULT_CHALLENGE_CONFIG: ChallengeConfig = {
@@ -59,6 +61,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   mergeDoubleTap: true,
   // AC-79：默认 false，人类与 Agent 相同；接线前不得有代码路径据此自动结算。
   autoSubmitOnSolved: false,
+  telemetryEnabled: true,
 };
 
 const TIME_LIMIT_BOUNDS = { minSec: 10, maxSec: 180 * 60 } as const;
@@ -152,6 +155,7 @@ export function coerceSettings(input: unknown): { settings: AppSettings; repaire
     monoMode: pick('monoMode', (v) => typeof v === 'boolean'),
     mergeDoubleTap: pick('mergeDoubleTap', (v) => typeof v === 'boolean'),
     autoSubmitOnSolved: pick('autoSubmitOnSolved', (v) => typeof v === 'boolean'),
+    telemetryEnabled: pick('telemetryEnabled', (v) => typeof v === 'boolean'),
   };
   return { settings, repaired };
 }

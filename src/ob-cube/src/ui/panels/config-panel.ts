@@ -13,7 +13,7 @@ import type { ConfigView } from '../view-model';
 import type { ChallengeConfig } from '../../services';
 
 export interface ConfigPanelHost {
-  onConfigChange(patch: Partial<ChallengeConfig>): void;
+  onConfigChange(patch: Partial<ChallengeConfig> & { telemetryEnabled?: boolean }): void;
 }
 
 const TIME_PRESETS: readonly { label: string; sec: number | null }[] = [
@@ -118,6 +118,14 @@ export class ConfigPanel {
           { label: 'AI Agent', value: 'agent', checked: view.participant === 'agent' },
         ],
         (value) => this.host.onConfigChange({ participant: value === 'agent' ? 'agent' : 'human' }),
+      ),
+      this.chipRow(
+        '本地统计',
+        [
+          { label: '开（仅存本机）', value: 'on', checked: view.telemetryEnabled },
+          { label: '关', value: 'off', checked: !view.telemetryEnabled },
+        ],
+        (value) => this.host.onConfigChange({ telemetryEnabled: value === 'on' }),
       ),
       this.puzzleRow(view),
     );

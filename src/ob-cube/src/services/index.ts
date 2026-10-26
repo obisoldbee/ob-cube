@@ -25,6 +25,8 @@ export {
 export type { AppSettings, ChallengeConfig } from './settings';
 export { HistoryService, MAX_RECORDS } from './history';
 export type { RunRecord, HistorySnapshot, CorruptRecord } from './history';
+export { TelemetryService } from './telemetry';
+export type { TelemetryEvent, TelemetryName } from './telemetry';
 
 export const settings = new SettingsService(store);
 export const history = new HistoryService(store);

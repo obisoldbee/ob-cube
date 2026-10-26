@@ -49,6 +49,8 @@ export interface ConfigView {
   /** F14 观察模式（PRD §8.2 C6）；默认 full */
   readonly observationMode: ObservationMode;
   readonly participant: 'human' | 'agent';
+  /** PRD §11.1：本地使用统计开关（仅存本机、不外发） */
+  readonly telemetryEnabled: boolean;
   readonly puzzleSource: 'random' | 'seed' | 'preset';
   readonly seedText: string;
   readonly presetId: string | null;

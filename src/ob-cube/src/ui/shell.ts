@@ -62,8 +62,8 @@ export interface UiPorts {
   rerun(): void;
   /** v1.9：再挑战一次 = 保留配置生成新题面（区别于同题面重跑） */
   retryNew(): void;
-  /** v1.9：挑战配置变更（时限/步数/蒙尘/参与者/题目来源） */
-  updateConfig(patch: Partial<ChallengeConfig>): void;
+  /** v1.9：挑战配置变更（时限/步数/蒙尘/参与者/题目来源）；telemetryEnabled 是设置项 */
+  updateConfig(patch: Partial<ChallengeConfig> & { telemetryEnabled?: boolean }): void;
   /** F11：历史记录处置（删除 / 导出原始数据） */
   deleteHistoryRecord(id: string): void;
   exportHistoryRecord(key: string): void;

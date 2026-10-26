@@ -29,6 +29,7 @@ import {
   isObservationMode,
   settings,
   store,
+  TelemetryService,
 } from '../services';
 import { namespaced } from '../services/storage';
 import type { ChallengeConfig } from '../services';
@@ -115,6 +116,8 @@ function initialConfig(): RunConfig & { autostart: boolean } {
 export function bootstrap(host: HTMLElement): void {
   const options = initialConfig();
   const config: RunConfig = options;
+  /** PRD §11.1：本地埋点（仅存本机、不外发；开关关闭后不写任何事件） */
+  const telemetry = new TelemetryService(store, () => settings.get().telemetryEnabled);
 
   /** 依据当前配置应使用的 seed：题库/显式 seed 优先，否则留空（高熵随机） */
   function resolveSeed(keepSeedOf?: ChallengeSession): string | number | undefined {
@@ -409,6 +412,10 @@ export function bootstrap(host: HTMLElement): void {
     replayState = stateAtStep(0);
     workspace.showReplayPanel();
     paintReplay();
+    telemetry.track('replay_opened', {
+      challenge_id: session.rules.challenge_id,
+      result: session.status,
+    });
     // AC-50：旧版引擎记录不得静默播放，必须等用户确认
     replayPlaying = !replayVersionMismatch;
     if (replayPlaying) schedulePlayback();
@@ -473,6 +480,7 @@ export function bootstrap(host: HTMLElement): void {
       seedText: config.seedText,
       presetId: config.presetId,
       observationMode: config.observationMode,
+      telemetryEnabled: settings.get().telemetryEnabled,
       presets: presetOptions(),
       validation: null,
     };
@@ -651,12 +659,49 @@ export function bootstrap(host: HTMLElement): void {
     try {
       fn();
     } catch (error: unknown) {
+      telemetry.track('api_error', {
+        method: 'ui',
+        error_code: isCubeError(error) ? error.code : 'unknown',
+      });
       workspace.toast(isCubeError(error) ? `${error.message}（${error.code}）` : '操作失败');
     }
     sync();
   }
 
   // ------------------------------------------------------------- 端口实现
+
+  let lastViewTrack = 0;
+  function trackView(method: 'drag' | 'key' | 'button'): void {
+    const now = Date.now();
+    if (now - lastViewTrack < 500) return;
+    lastViewTrack = now;
+    telemetry.track('view_rotated', { axis: session.viewOrientation.up, method });
+  }
+
+  function trackMove(channel: 'keyboard' | 'button' | 'api', merged = false): void {
+    const result = session.getLastActionResult();
+    if (!result) return;
+    if (result.move_count === 1) {
+      telemetry.track('first_move_made', {
+        time_to_first_move_ms: result.elapsed_ms,
+        input_channel: channel,
+      });
+    }
+    telemetry.track('move_made', {
+      move: result.move,
+      layer_count: result.layer_count,
+      turn_amount: result.turn_amount,
+      input_channel: channel,
+      step_index: result.move_count,
+    });
+    if (merged) {
+      telemetry.track('move_merged_to_half_turn', {
+        face: result.axis,
+        merged_from: result.move,
+        window_ms: 300,
+      });
+    }
+  }
 
   function faceViewState(face: FaceId): ViewState {
     if (face === 'U') return { up: 'B', front: 'U' };
@@ -690,6 +735,11 @@ export function bootstrap(host: HTMLElement): void {
       guard(() => {
         if (replayTimer !== null) return;
         session.start();
+        telemetry.track('challenge_started', {
+          challenge_id: session.rules.challenge_id,
+          cube_size: session.size,
+          observation_mode: session.observationMode,
+        });
         repaint();
       });
     },
@@ -701,13 +751,22 @@ export function bootstrap(host: HTMLElement): void {
           workspace.toast('Agent 模式不支持暂停，暂停仅人类挑战可用');
           return;
         }
+        const before = session.pauseStats.count;
         session.pause();
+        if (session.pauseStats.count > before) {
+          telemetry.track('challenge_paused', {
+            pause_index: session.pauseStats.count,
+            elapsed_ms_at_pause: session.elapsedMs(),
+          });
+        }
         repaint();
       });
     },
     resumeChallenge() {
       guard(() => {
+        const paused = session.pauseStats.totalMs;
         session.resume();
+        telemetry.track('challenge_resumed', { paused_duration_ms: session.pauseStats.totalMs - paused });
         repaint();
       });
     },
@@ -759,6 +818,7 @@ export function bootstrap(host: HTMLElement): void {
         const channel = intent.source === 'keyboard' ? 'keyboard' : 'button';
         session.applyIntent(intent.face, layers, intent.amount, merged, channel);
         animate(spec);
+        trackMove(channel, merged);
         markFirstMoveDone();
       });
     },
@@ -768,6 +828,7 @@ export function bootstrap(host: HTMLElement): void {
         session.applyMoveNotation(raw);
         const spec = parseMove(raw, session.size);
         if (spec.kind === 'turn') animate(spec);
+        trackMove('api');
         markFirstMoveDone();
       });
     },
@@ -793,13 +854,20 @@ export function bootstrap(host: HTMLElement): void {
       guard(() => {
         const next = session.stepView(step);
         stage?.rig.applyView(next, { animate: true });
+        trackView('button');
       });
     },
     viewReset() {
-      guard(() => applyView({ up: 'U', front: 'F' }));
+      guard(() => {
+        applyView({ up: 'U', front: 'F' });
+        trackView('button');
+      });
     },
     faceView(face) {
-      guard(() => applyView(faceViewState(face)));
+      guard(() => {
+        applyView(faceViewState(face));
+        trackView('button');
+      });
     },
     replay() {
       beginReplay();
@@ -852,6 +920,7 @@ export function bootstrap(host: HTMLElement): void {
       // 同题面重跑：回到 ready，由玩家显式按下开始（v1.9：不自动起表）
       flushAnimation();
       stopReplay();
+      telemetry.track('run_again_clicked', { same_challenge: true });
       session.resetRun();
       stage?.rig.applyView({ up: 'U', front: 'F' }, { animate: false });
       repaint();
@@ -863,6 +932,7 @@ export function bootstrap(host: HTMLElement): void {
       // 注意不能走 resolveSeed()：seed 来源（URL ?seed= / 面板 seed / 题库预设）
       // 锚定的都是同一道题，复用会让本按钮退化成第二个「同题面重跑」。
       // 同一题面请用 rerun()；这里强制交给会话层做高熵随机。
+      telemetry.track('run_again_clicked', { same_challenge: false });
       const next = new ChallengeSession({
         size: config.size,
         timeLimitMs: config.timeLimitMs,
@@ -899,11 +969,15 @@ export function bootstrap(host: HTMLElement): void {
       }
       if (patch.seedText !== undefined) config.seedText = patch.seedText;
       if (patch.presetId !== undefined) config.presetId = patch.presetId;
-      // 参与者切换只影响 Agent 面板可见性，不动题面
-      const onlyParticipant =
-        patch.participant !== undefined &&
-        Object.keys(patch).every((k) => k === 'participant');
-      if (onlyParticipant) {
+      // PRD §11.1 开关：只影响埋点落盘，不影响题面或会话
+      if (patch.telemetryEnabled !== undefined) {
+        settings.patch({ telemetryEnabled: patch.telemetryEnabled });
+      }
+      // 参与者 / 本地统计切换只影响面板与设置，不动题面
+      const onlyLocalSettings = Object.keys(patch).every(
+        (key) => key === 'participant' || key === 'telemetryEnabled',
+      );
+      if (onlyLocalSettings) {
         persistConfig();
         sync();
         return;
@@ -914,6 +988,14 @@ export function bootstrap(host: HTMLElement): void {
         if (preset && preset.size !== config.size) config.size = preset.size;
       }
       persistConfig();
+      telemetry.track('challenge_config_submitted', {
+        cube_size: config.size,
+        gen_mode: config.puzzleSource,
+        time_limit_ms: config.timeLimitMs,
+        move_limit: config.moveLimit,
+        dust_mode: config.dustMode,
+        observation_mode: config.observationMode,
+      });
       if (
         config.size !== before.size ||
         config.dustMode !== before.dustMode ||
@@ -998,7 +1080,12 @@ export function bootstrap(host: HTMLElement): void {
   refreshHistory();
   if (!history.canPersist) {
     workspace.setStorageWarning('浏览器存储不可用，本次结果不会被保存。可点导出 JSON 手动留存。');
+    telemetry.track('storage_unavailable', { reason: 'blocked' });
   }
+  telemetry.track('page_view', {
+    referrer_type: document.referrer === '' ? 'direct' : 'external',
+    device: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+  });
 
   /**
    * v1.9（AC-28）：超时判定与状态同步不能只挂在 rAF 上——后台标签页的 rAF 会被
@@ -1072,6 +1159,7 @@ export function bootstrap(host: HTMLElement): void {
     const status = session.status;
     if (status !== 'running' && status !== 'paused') return;
     session.interrupt();
+    telemetry.flush();
     if (!history.canPersist) return;
     try {
       history.save(session.getChallengeResult());
@@ -1136,6 +1224,11 @@ export function bootstrap(host: HTMLElement): void {
 
   if (options.autostart) {
     session.start();
+    telemetry.track('challenge_started', {
+      challenge_id: session.rules.challenge_id,
+      cube_size: session.size,
+      observation_mode: session.observationMode,
+    });
     repaint();
     sync();
   }
