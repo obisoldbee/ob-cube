@@ -226,7 +226,7 @@
 
 > **v2.0 关键口径**：`applyMove` 后检测到还原**不是终止**，而是进入 `solved_pending`；**人类与 Agent 一律须显式 `submitSolution()`** 才产生 `ended_solved`（`auto_submit_on_solved` 默认已改为 `false`，见 [`02-user-flow.md`](02-user-flow.md) §2.2 步骤 1 的裁定说明）。因此 `solved_pending` 下"还原优先于超时"：即使此后计时超过 `time_limit_ms`，结果仍锁定为 `solved`。
 >
-> ⚠️ **当前实现缺这条豁免**：`session.tick()` 只排除 `paused` 与 `ended_*`，未排除 `solved_pending`，因此已还原未提交的运行会被超时覆盖为 `ended_timeout`。这是已登记的高危缺陷 **D1**，违反 AC-28 与 AC-75，且无测试覆盖。见 [`../PRD.md`](../PRD.md) §4.2。
+> **交付状态（2026-10-26 更正）**：这条豁免已实现——`session.tick()` 在 `paused` 与 `ended_*` 之外也排除 `solved_pending`，回归用例见 `tests/challenge/session.test.ts` 的「D1：solved_pending 不被超时覆盖」。原登记的 D1 缺陷与「无测试覆盖」结论均已过时。
 
 | 判定 | 触发条件 | 结果状态 | 后续行为 |
 |---|---|---|---|

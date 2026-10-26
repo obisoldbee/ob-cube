@@ -23,8 +23,8 @@ export {
   TIME_LIMIT_RANGE,
 } from './settings';
 export type { AppSettings, ChallengeConfig } from './settings';
-export { HistoryService, MAX_RECORDS } from './history';
-export type { RunRecord, HistorySnapshot, CorruptRecord } from './history';
+export { HistoryService, MAX_RECORDS, medianSolvedElapsed } from './history';
+export type { RunRecord, HistorySnapshot, CorruptRecord, ComparableRules } from './history';
 export { TelemetryService } from './telemetry';
 export type { TelemetryEvent, TelemetryName } from './telemetry';
 

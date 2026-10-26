@@ -5,7 +5,7 @@
  * 它不含规则：所有计步、判定、观察权限都在 challenge/，这里只做投影与调用。
  */
 
-import { ChallengeSession } from '../challenge';
+import { ChallengeSession, viewAtStep } from '../challenge';
 import { mountCubeAgent } from '../agent';
 import {
   createSolvedState,
@@ -27,6 +27,7 @@ import {
   isLegalSeedText,
   isLegalTimeLimitSec,
   isObservationMode,
+  medianSolvedElapsed,
   settings,
   store,
   TelemetryService,
@@ -138,6 +139,8 @@ export function bootstrap(host: HTMLElement): void {
       moveLimit: config.moveLimit,
       observationMode: config.observationMode,
       dustMode: config.dustMode,
+      // 归并开关进会话：窗口内的双击会把两步折成一步 X2，步数耗尽判定必须等窗口关
+      mergeDoubleTap: settings.get().mergeDoubleTap,
     });
   }
 
@@ -164,22 +167,13 @@ export function bootstrap(host: HTMLElement): void {
     return difficulty;
   }
 
-  /** 同题面历史中位耗时（F13）。当前 run 自身的记录不计入参照。 */
+  /**
+   * 同题面历史中位耗时（F13）。口径收敛在 `medianSolvedElapsed`：
+   * 只统计同规则下的成功运行，并用还原时刻而非提交时刻（R12）。
+   */
   function compareElapsedMs(): number | null {
     try {
-      const currentRun = session.rules.run_id;
-      const values = history
-        .list()
-        .records.filter(
-          (record) =>
-            record.id !== currentRun && record.result.rules.challenge_id === session.rules.challenge_id,
-        )
-        .map((record) => record.result.elapsed_ms)
-        .filter((ms) => Number.isFinite(ms) && ms > 0)
-        .sort((a, b) => a - b);
-      if (values.length === 0) return null;
-      const mid = Math.floor(values.length / 2);
-      return values.length % 2 === 1 ? values[mid]! : Math.round((values[mid - 1]! + values[mid]!) / 2);
+      return medianSolvedElapsed(history.list().records, session.rules, session.rules.run_id);
     } catch {
       return null;
     }
@@ -252,6 +246,8 @@ export function bootstrap(host: HTMLElement): void {
   }
 
   function repaint(): void {
+    // 回放期间画面归 paintReplay 管：这里若按会话终局重涂，会把回放中的中间态盖掉。
+    if (replayState !== null) return;
     if (!stage) {
       updateNet();
       return;
@@ -262,7 +258,50 @@ export function bootstrap(host: HTMLElement): void {
     const showDust =
       (status === 'ready' && session.dustMode) || status === 'paused';
     stage.setDust(showDust);
+    applyReveal();
     stage.view.applyFacelets(session.stateView);
+  }
+
+  /**
+   * 非完整观察档：3D 画面也只显示授权面。
+   * 相机拖动只改相机、不改朝向（camera-rig 的既定口径），所以不设遮罩时
+   * 「拖一下就能看到别的面」——观察档在画面上形同虚设。
+   */
+  function applyReveal(): void {
+    if (!stage) return;
+    stage.view.setReveal(session.observationMode === 'full' ? null : session.visibleFaces());
+  }
+
+  /** 相机最后被应用到的离散朝向：拖动不改它，避免一次 API 转动就把用户视角拽回去 */
+  let appliedView: ViewState = { up: 'U', front: 'F' };
+
+  function setCamera(view: ViewState, animate: boolean): void {
+    appliedView = { ...view };
+    stage?.rig.applyView(view, { animate });
+  }
+
+  /**
+   * API 驱动的变更（`window.cubeAgent.applyMove / rotateView / ...`）之后，让画面
+   * 与会话状态对齐。旧实现只更新面板与日志：Agent 转了魔方，3D 画面纹丝不动，
+   * 靠截图判断的 Agent 会一直拿到转动前的图（R02）。
+   *
+   * 这里用「瞬时对齐」而不是 170ms 动画：Agent 可能连续高速提交，
+   * 逐条排队动画只会让画面永远落后于真实状态。
+   */
+  function syncVisual(): void {
+    if (!stage) {
+      updateNet();
+      return;
+    }
+    flushAnimation();
+    const status = session.status;
+    stage.setDust((status === 'ready' && session.dustMode) || status === 'paused');
+    applyReveal();
+    stage.view.applyFacelets(session.stateView);
+    const view = session.viewOrientation;
+    if (view.up !== appliedView.up || view.front !== appliedView.front) {
+      setCamera(view, false);
+    }
   }
 
   /** AC-53：2D 降级视图的状态投影（观察模式与蒙尘口径与 3D 路径一致） */
@@ -310,8 +349,18 @@ export function bootstrap(host: HTMLElement): void {
     return state;
   }
 
+  /**
+   * 观察者模式下「回放到第 step 步时应授权的面」。
+   *
+   * 旧实现直接读 `session.visibleFaces()`——那是**结束时**的朝向，于是整段回放
+   * 都按最后一刻的视野展示，中途转过视角的步骤全部错位（R10）。
+   * 现改为按事件顺序累计 `view_after`，恢复每一时刻的真实朝向。
+   */
   function replayVisibleFaces(): readonly FaceId[] {
-    return replayMode === 'observer' ? session.visibleFaces() : FACE_ORDER;
+    if (replayMode !== 'observer') return FACE_ORDER;
+    const mode = session.observationMode;
+    if (mode === 'full') return FACE_ORDER;
+    return session.visibleFacesFor(viewAtStep(session.eventLog, replayStep));
   }
 
   function gridsOf(state: CubeState): readonly { face: FaceId; grid: ReturnType<typeof toGrid> }[] {
@@ -438,7 +487,8 @@ export function bootstrap(host: HTMLElement): void {
     mountCubeAgent(session, onApiMutate);
     stage?.setSize(session.size);
     attachResolver();
-    stage?.rig.applyView({ up: 'U', front: 'F' }, { animate: false });
+    // 会话视角已在 resetRun/新会话里复位，相机跟着会话走（不硬编码朝向）
+    setCamera(session.viewOrientation, false);
     repaint();
     sync();
   }
@@ -498,6 +548,11 @@ export function bootstrap(host: HTMLElement): void {
       return { faceColors: {}, locked: true, lockReason: 'paused', observationId: null, visibleFaces: [] };
     }
     const obs = session.peekObservation();
+    // restricted 档在交付过第一份观察之前没有任何授权面：这里必须显式报「未获得观察」，
+    // 不能靠 faceColors 为空就让面板回落到「开始后可读取」的文案（那是错的场景）。
+    if (obs.visible_faces.length === 0) {
+      return { faceColors: {}, locked: true, lockReason: 'no-observation', observationId: null, visibleFaces: [] };
+    }
     return {
       faceColors: obs.face_colors,
       locked: false,
@@ -713,7 +768,7 @@ export function bootstrap(host: HTMLElement): void {
 
   function applyView(view: ViewState): void {
     session.rotateView(view);
-    stage?.rig.applyView(view, { animate: true });
+    setCamera(view, true);
   }
 
   function persistConfig(): void {
@@ -798,6 +853,7 @@ export function bootstrap(host: HTMLElement): void {
         moveLimit: config.moveLimit,
         observationMode: config.observationMode,
         dustMode: config.dustMode,
+        mergeDoubleTap: settings.get().mergeDoubleTap,
       }));
       workspace.toast('已生成新题面，点「开始挑战」计时');
     },
@@ -806,7 +862,7 @@ export function bootstrap(host: HTMLElement): void {
       stopReplay();
       session.resetRun();
       // resetRun 会把会话视角复位，3D 相机必须同一帧跟上，否则观察面板与画面朝向不一致。
-      stage?.rig.applyView({ up: 'U', front: 'F' }, { animate: false });
+      setCamera(session.viewOrientation, false);
       repaint();
       sync();
       workspace.toast('已回到本题初始状态，计时与计步已清零');
@@ -826,8 +882,10 @@ export function bootstrap(host: HTMLElement): void {
     },
     applyNotation(raw) {
       guard(() => {
-        // F16：与按钮/键盘共用会话层的唯一提交点，动画在提交成功后再补
-        session.applyMoveNotation(raw);
+        // F16：与按钮/键盘共用会话层的唯一提交点，动画在提交成功后再补。
+        // 人类记法输入不消耗受限观察预算（deliver=false）——预算管的是 Agent 的
+        // 结构化观察交付，人类看的是同一块屏幕。
+        session.applyMoveNotation(raw, undefined, null, false);
         const spec = parseMove(raw, session.size);
         if (spec.kind === 'turn') animate(spec);
         trackMove('api');
@@ -855,7 +913,7 @@ export function bootstrap(host: HTMLElement): void {
     viewStep(step: ViewStep) {
       guard(() => {
         const next = session.stepView(step);
-        stage?.rig.applyView(next, { animate: true });
+        setCamera(next, true);
         trackView('button');
       });
     },
@@ -924,7 +982,7 @@ export function bootstrap(host: HTMLElement): void {
       stopReplay();
       telemetry.track('run_again_clicked', { same_challenge: true });
       session.resetRun();
-      stage?.rig.applyView({ up: 'U', front: 'F' }, { animate: false });
+      setCamera(session.viewOrientation, false);
       repaint();
       sync();
       workspace.toast('已重置本题，点「开始挑战」起表');
@@ -941,6 +999,7 @@ export function bootstrap(host: HTMLElement): void {
         moveLimit: config.moveLimit,
         observationMode: config.observationMode,
         dustMode: config.dustMode,
+        mergeDoubleTap: settings.get().mergeDoubleTap,
       });
       swapSession(next);
       workspace.toast('已生成新题面，点「开始挑战」起表');
@@ -1117,6 +1176,9 @@ export function bootstrap(host: HTMLElement): void {
   }
   /** API 变更型调用（applyMove / submit / abandon / rotateView）后的同帧 UI 同步。 */
   function onApiMutate(): void {
+    // 画面先对齐（含相机），再走状态同步：tickAndSync 只在状态迁移时才 repaint，
+    // 而 running → running 的普通转动永远不迁移——这正是「Agent 转了、画面没动」的成因。
+    syncVisual();
     if (!tickAndSync()) sync();
   }
 
@@ -1163,10 +1225,12 @@ export function bootstrap(host: HTMLElement): void {
   window.addEventListener('resize', () => stage?.resize());
 
   // PRD §7.3 / §11（P0）：running/paused 中关闭或刷新页面 → 结算为 interrupted
-  // 并尽力把已有事件写入 localStorage。同步执行，不等待任何异步 API。
+  // 并尽力把已有事件写入 localStorage。solved_pending 同样要落盘——但结算口径是
+  // ended_solved 且 submit_ms 留空（已还原是既成事实，不因没点提交而作废）。
+  // 同步执行，不等待任何异步 API。
   window.addEventListener('beforeunload', () => {
     const status = session.status;
-    if (status !== 'running' && status !== 'paused') return;
+    if (status !== 'running' && status !== 'paused' && status !== 'solved_pending') return;
     session.interrupt();
     telemetry.flush();
     if (!history.canPersist) return;

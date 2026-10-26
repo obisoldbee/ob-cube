@@ -11,7 +11,7 @@
  * 字段命名 snake_case（PRD §6.2），方法命名 camelCase（AC-41）。
  */
 
-import { CubeError } from '../contracts';
+import { CubeError, isEnded } from '../contracts';
 import type { ChallengeSession } from '../challenge';
 import type { ViewState } from '../contracts';
 
@@ -28,13 +28,18 @@ export function createCubeAgent(session: ChallengeSession, onMutate?: () => void
   const api = {
     getChallengeInfo() {
       const rules = session.rules;
-      // AC-64：ready 态 seed 与 scramble 必须为 null——seed 能重建题面，
-      // 属蒙尘门控范围。开始后题面本身已可观察，seed 才允许出现。
-      const hidden = session.status === 'ready' || session.status === 'idle';
+      // AC-64 / AC-77 / PRD §8.2 C3-C4：**整个未结束阶段**（ready / running / paused /
+      // solved_pending）都必须隐藏题面字段。旧实现只在 ready / idle 隐藏，
+      // 于是「开始挑战」后一调 getChallengeInfo 就能拿到 seed，配合确定性生成器
+      // 直接重建打乱序列——评测要测的观察与还原过程被整个绕过。
+      // 打乱序列的唯一出口是结束后的 getChallengeResult()。
+      const hidden = !isEnded(session.status);
       return {
         ...rules,
         seed: hidden ? null : rules.seed,
-        scramble: null,
+        scramble: hidden ? null : session.record.scramble.join(' '),
+        facelet_string: null,
+        state_fingerprint: null,
         status: session.status,
         move_catalog: session.peekObservation().allowed_actions.notation,
       };
@@ -56,14 +61,11 @@ export function createCubeAgent(session: ChallengeSession, onMutate?: () => void
     },
     applyMove(move: string, opts?: { op_id?: string; based_on_observation_id?: string }) {
       try {
-        session.tick();
-        const result = session.applyMoveNotation(move, opts?.op_id);
-        return {
-          ok: true,
-          ...result,
-          observation_id: result.next_observation.observation_id,
-          based_on_observation_id: opts?.based_on_observation_id ?? null,
-        };
+        // AC-42（v2.0 修订）：**恰好 13 个平铺字段**。这里不再额外塞 `ok` 与根级
+        // `observation_id`——失败一律抛异常，观察 id 在 `next_observation` 里，
+        // 「依据哪次观察」落进事件（`based_on_observation_id`），不放返回值。
+        // 旧实现返回 16 个字段，对外契约与 PRD 逐字不符。
+        return session.applyMoveNotation(move, opts?.op_id, opts?.based_on_observation_id ?? null);
       } finally {
         after();
       }
@@ -90,9 +92,18 @@ export function createCubeAgent(session: ChallengeSession, onMutate?: () => void
         after();
       }
     },
-    getChallengeResult(challengeId: string, _runId?: string) {
+    getChallengeResult(challengeId: string, runId?: string) {
       if (challengeId !== session.rules.challenge_id) {
         throw new CubeError('E_RUN_NOT_FOUND', `找不到挑战 ${challengeId}`, '请核对 challenge_id');
+      }
+      // R09：同题可以跑多轮。指定了 run_id 就必须按它校验，不能默默返回当前这轮
+      // ——旧实现把 runId 参数整个忽略，"查第一轮"会返回第二轮的步数与耗时。
+      if (runId !== undefined && runId !== session.rules.run_id) {
+        throw new CubeError(
+          'E_RUN_NOT_FOUND',
+          `找不到运行 ${runId}`,
+          '本会话只保留当前 run；历史各轮请从结果页或本地记录里按 run_id 查',
+        );
       }
       return session.getChallengeResult();
     },

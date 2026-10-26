@@ -87,7 +87,7 @@ export class ObservationPanel {
     this.body.append(note);
   }
 
-  private lockedState(reason: 'not-started' | 'paused' | null): HTMLElement {
+  private lockedState(reason: 'not-started' | 'paused' | 'no-observation' | null): HTMLElement {
     const wrap = document.createElement('div');
     wrap.className = 'empty';
     const title = document.createElement('span');
@@ -98,7 +98,9 @@ export class ObservationPanel {
     desc.textContent =
       reason === 'paused'
         ? '挑战已暂停，计时已冻结，观察暂不可用；继续挑战后恢复。'
-        : '开始后可读取。本模式用于防止误看，不能阻止通过开发者工具读取内存。';
+        : reason === 'no-observation'
+          ? '本档只显示已交付的观察快照，不显示实时状态。观察次数用尽后不再更新。'
+          : '开始后可读取。本模式用于防止误看，不能阻止通过开发者工具读取内存。';
     wrap.append(title, desc);
     return wrap;
   }

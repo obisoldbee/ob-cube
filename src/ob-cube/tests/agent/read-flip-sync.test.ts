@@ -22,12 +22,27 @@ function makeAgent(timeLimitMs = 5000) {
 }
 
 describe('Agent API 契约补齐（AC-41 / AC-42 / §13.4）', () => {
-  it('方法白名单恰为 9 个；applyMove 成功返回含 ok:true 与 api 通道', () => {
+  it('方法白名单恰为 9 个；applyMove 成功返回恰好 13 个平铺字段（AC-42 v2.0）', () => {
     const { agent, session } = makeAgent();
     session.start();
     expect(Object.keys(agent)).toHaveLength(9);
     const result = agent.applyMove('R', { op_id: 'op-1' });
-    expect(result.ok).toBe(true);
+    // 13 字段是冻结口径：曾漂移成 16 个（多了 ok、根级 observation_id、based_on）
+    expect(Object.keys(result).sort()).toEqual([
+      'axis',
+      'deduplicated',
+      'elapsed_ms',
+      'layer_count',
+      'layer_set',
+      'move',
+      'move_count',
+      'next_observation',
+      'op_id',
+      'remaining_ms',
+      'solved',
+      'state_fingerprint_after',
+      'turn_amount',
+    ]);
     expect(result.layer_set).toEqual([1]);
     expect(session.eventLog.at(-1)?.input_channel).toBe('api');
   });

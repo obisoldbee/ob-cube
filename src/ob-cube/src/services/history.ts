@@ -126,3 +126,50 @@ export class HistoryService {
     return read.ok ? read.value : null;
   }
 }
+
+/** 「同题同规则」的判定口径：只比这几项，缺一项就不是可比的成绩 */
+export interface ComparableRules {
+  readonly challenge_id: string;
+  readonly cube_size: number;
+  readonly observation_mode: string;
+  readonly dust_mode: boolean;
+  readonly time_limit_ms: number | null;
+  readonly move_limit: number | null;
+}
+
+/**
+ * 同题同规则的成功耗时中位数（F13 / R12）。
+ *
+ * 三条过滤缺一不可：
+ *  1. 只算**成功**运行——放弃、超时、步数耗尽的耗时不是"这道题要多久"；
+ *  2. 只算**同规则**运行——观察档 / 蒙尘 / 时限 / 步限任一不同就不可比；
+ *  3. 用 `solved_at_ms`（还原时刻）而不是 `elapsed_ms`（含等待提交的时间）——
+ *     后者把"点了提交按钮前发呆"算进解题速度。
+ * 旧实现只筛同题 ID 与正数耗时，三类污染记录都会进中位数。
+ */
+export function medianSolvedElapsed(
+  records: readonly RunRecord[],
+  rules: ComparableRules,
+  excludeRunId?: string,
+): number | null {
+  const values = records
+    .filter((record) => record.id !== excludeRunId)
+    .filter((record) => record.result.solved && record.result.status === 'ended_solved')
+    .filter((record) => {
+      const other = record.result.rules;
+      return (
+        other.challenge_id === rules.challenge_id &&
+        other.cube_size === rules.cube_size &&
+        other.observation_mode === rules.observation_mode &&
+        other.dust_mode === rules.dust_mode &&
+        other.time_limit_ms === rules.time_limit_ms &&
+        other.move_limit === rules.move_limit
+      );
+    })
+    .map((record) => record.result.solved_at_ms ?? record.result.elapsed_ms)
+    .filter((ms) => Number.isFinite(ms) && ms > 0)
+    .sort((a, b) => a - b);
+  if (values.length === 0) return null;
+  const mid = Math.floor(values.length / 2);
+  return values.length % 2 === 1 ? values[mid]! : Math.round((values[mid - 1]! + values[mid]!) / 2);
+}

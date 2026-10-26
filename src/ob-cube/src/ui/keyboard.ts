@@ -12,7 +12,8 @@
  */
 
 import type { CubeSize, FaceId, MoveAmount } from '../contracts';
-import type { FaceKeyChar, PrefixChar, TurnIntent } from './keymap';
+import { MERGE_WINDOW_MS } from '../contracts';
+import type { FaceKeyChar, LayerSpec, PrefixChar, TurnIntent } from './keymap';
 import {
   FACE_OF_KEY,
   isLayerSpecLegal,
@@ -22,7 +23,7 @@ import {
   PREFIX_CHARS,
 } from './keymap';
 
-export const MERGE_WINDOW_MS = 300;
+export { MERGE_WINDOW_MS };
 export const PREFIX_TIMEOUT_MS = 3000;
 
 export type ViewStep = 'left' | 'right' | 'up' | 'down';
@@ -90,7 +91,8 @@ export class KeyboardController {
   private prefix: PrefixChar | null = null;
   private shift = false;
   private prefixTimer: ReturnType<typeof setTimeout> | null = null;
-  private last: { face: FaceId; layers: string; amount: MoveAmount; at: number } | null = null;
+  /** 归并窗口内上一按的完整意图：面、**层规格**、转向量与时间 */
+  private last: { face: FaceId; layers: LayerSpec; amount: MoveAmount; at: number } | null = null;
   private attached = false;
 
   constructor(private readonly host: KeyboardHost) {}
@@ -264,9 +266,24 @@ export class KeyboardController {
 
   private handleFace(face: FaceId, event: KeyboardEvent): void {
     const size = this.host.size();
-    const layers = this.prefix ? layerSpecOfPrefix(this.prefix) : OUTER;
     // this.shift 是先按 Shift 再按键的两段式，event.shiftKey 是同时按的一段式，两种都要支持
     const baseAmount: MoveAmount = this.shift || event.shiftKey ? 3 : 1;
+    const now = Date.now();
+    const prev = this.last;
+    const sameDoubleTap =
+      this.host.mergeEnabled() &&
+      prev !== null &&
+      prev.face === face &&
+      prev.amount === baseAmount &&
+      now - prev.at <= MERGE_WINDOW_MS;
+
+    // R04：前缀在第一次面键后就被清掉，但双击的**第二次**按键必须沿用同一套层集合。
+    // 旧实现第二次按 OUTER 解释，`2 D D` 得到 Rw + R 而不是规格要求的 Rw2。
+    const layers: LayerSpec = this.prefix
+      ? layerSpecOfPrefix(this.prefix)
+      : sameDoubleTap && prev !== null
+        ? prev.layers
+        : OUTER;
 
     if (!isLayerSpecLegal(layers, size)) {
       this.host.onSignal({ kind: 'rejected', reason: this.rejectReason(layers.kind, size) });
@@ -279,17 +296,11 @@ export class KeyboardController {
       return;
     }
 
-    const now = Date.now();
-    const signature = `${face}|${layersOf(layers, size).join(',')}`;
-    // 归并窗口三要素都相同才算「双击同键」：面、层、转向量。
+    // 归并窗口三要素都相同才算「双击同键」：面、层集合、转向量。
     // 转向量也必须一致——先按 X 再按 Shift+X 是两次不同意图，不归并。
+    const signature = layersOf(layers, size).join(',');
     const merged =
-      this.host.mergeEnabled() &&
-      this.last !== null &&
-      this.last.face === face &&
-      this.last.layers === signature &&
-      this.last.amount === baseAmount &&
-      now - this.last.at <= MERGE_WINDOW_MS;
+      sameDoubleTap && prev !== null && layersOf(prev.layers, size).join(',') === signature;
 
     this.cancelPrefix(true);
 
@@ -300,7 +311,7 @@ export class KeyboardController {
     this.host.onTurn({ intent, merged });
     if (merged) this.host.onSignal({ kind: 'merged', intent });
 
-    this.last = merged ? null : { face, layers: signature, amount: baseAmount, at: now };
+    this.last = merged ? null : { face, layers, amount: baseAmount, at: now };
   }
 
   private rejectReason(kind: string, size: CubeSize): string {

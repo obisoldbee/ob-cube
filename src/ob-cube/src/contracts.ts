@@ -133,6 +133,13 @@ export interface Observation {
 // 操作结果
 // ---------------------------------------------------------------------------
 
+/**
+ * 180° 双击归并窗口（PRD §5.3.1 / §5.4）。
+ * 输入整形必须早于定稿：窗口内第二次同向 90° 才能折成一条 X2，
+ * 因此计步与「步数耗尽」判定都要等窗口关闭（见 session.commit 的 deferLimit）。
+ */
+export const MERGE_WINDOW_MS = 300;
+
 export interface MoveResult {
   op_id: string | null;
   deduplicated: boolean;
@@ -153,8 +160,12 @@ export interface MoveResult {
   elapsed_ms: number;
   remaining_ms: number | null;
   solved: boolean;
-  /** 执行后的最新观察。Agent 不需要再单独调 observe 即可继续决策。 */
-  next_observation: Observation;
+  /**
+   * 执行后的最新观察。Agent 不需要再单独调 observe 即可继续决策。
+   * `restricted` 预算用尽、或 `after_move` 档本次已交付过观察时为 `null`——
+   * 此时不得再携带任何新颜色（PRD §8.2 C6：观察一次即交付一份快照）。键恒存在。
+   */
+  next_observation: Observation | null;
 }
 
 export interface Progress {
@@ -234,6 +245,19 @@ export interface RunEvent {
   direction: 'left' | 'right' | 'up' | 'down' | null;
   /** AC-67：相对视角旋转的步数（stepView 恒为 1）；绝对 rotateView 时为 null */
   steps: number | null;
+  /**
+   * AC-43 / 07-agent-api §7.5：本次操作所依据的观察。
+   * 调用方（Agent）声明 `based_on_observation_id` 时原样落库；未声明时 =
+   * 事件生成时刻的当前观察 id（即"默认依据上一条交付的观察"）。
+   * 它是事件字段而非 `applyMove` 返回值字段——AC-42 的 13 字段不含根级 id。
+   */
+  based_on_observation_id: string | null;
+  /**
+   * AC-67 / 观察者回放：view 事件执行后的完整朝向 `{up, front}`。
+   * 回放必须按事件逐步恢复当时的视野，不能用结束时的朝向倒推；
+   * 非 view 事件为 null（旧记录缺此键时回放退化为当前朝向）。
+   */
+  view_after: ViewState | null;
 }
 
 export interface ChallengeResult {
@@ -266,6 +290,16 @@ export interface ChallengeResult {
   submit_ms?: number | null;
   /** PRD §10.4：事件数超过 2000 条时置 true，表示 view 事件被优先丢弃 */
   events_truncated?: boolean;
+  /** PRD §10.4：本次落盘丢弃的事件条数（含被优先丢弃的 view 事件） */
+  events_dropped?: number;
+  /**
+   * PRD §13.1 可复现四件套：原始打乱序列 + 生成算法版本 + 记法版本 + 初始指纹。
+   * **只在挑战结束后由 `getChallengeResult()` 返回**——未结束前交出它等于交出题面
+   * （PRD §8.2 C3/C4）。历史记录据此重建题面，不再依赖"同一版生成器"。
+   */
+  scramble?: readonly string[];
+  scramble_fingerprint?: string;
+  gen_algorithm_version?: number;
 }
 
 // ---------------------------------------------------------------------------

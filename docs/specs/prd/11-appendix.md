@@ -179,12 +179,12 @@
 | AC | 状态 | 缺口 |
 |---|---|---|
 | AC-16 | **部分** | ΔE 确定性探针**无自动化断言**。`CubeView.getProbePoints()` 接口已按 UIUX §6.6 暴露，但 `tests/` 里没有 `readPixels` 探针测试；第四轮评审做过一次性人工采样（33066 点，最小 ΔE = 66.69），不是可重复的门禁 |
-| AC-19 / AC-20 / AC-65 | **已降级至 P1** | 随 F14 降级。引擎侧 `three_faces` / `single_face` / `restricted` 已实现且有测试；`after_move` 无门控逻辑；生产无配置入口（`wiring` 不传 `observationMode`，恒 `full`） |
+| AC-19 / AC-20 / AC-65 | **已交付（P1）** | 引擎侧五档全部实现且有测试；`after_move` 门控（`E_OBSERVATION_REQUIRES_MOVE`）与 `restricted` 24 次预算均已生效；配置入口已落地（`settings.ts` 的 `ChallengeConfig.observationMode` + 配置面板 + URL `?observe=`，`wiring` 逐次传入）。2026-10-26 评审修复轮补：预算对 `applyMove` 的自动观察同样生效，面板与 3D 画面均只显示授权面 |
 | AC-26 | **部分** | 判定本身已实现（单色 + 双射 + 手性 `det = +1`）；对外 `E_INVALID_STATE` 码不存在，仅内部 `mismatch.reason='invalid-scheme'` |
-| AC-28 | **部分（含高危缺陷 D1）** | "200ms 内 UI 置灰"已实现（`lastSyncedStatus` 兜底 + `onMutate()` 同帧同步）；但**"`solved_pending` 不判超时"未实现**——`session.tick()` 只排除 `paused` 与 `ended_*`，已还原未提交的运行会被超时覆盖。无测试覆盖 |
+| AC-28 | **已交付** | "200ms 内 UI 置灰"已实现（`lastSyncedStatus` 兜底 + `onMutate()` 同帧同步）；"`solved_pending` 不判超时"已实现并有回归用例（D1 关闭）。2026-10-26 更正 |
 | AC-47 / AC-48 / AC-50 | **已降级至 P1** | 随 F09b 降级。当前回放是结果页内 260ms 定时器重放，无独立回放页、无进度条拖拽、无单步、无三视角、无旧引擎版本提示 |
 | AC-53 | **未实现** | 无 2D 展开图降级路径（`render/view-2d.ts` 不存在，架构测试清单里的 T-27 缺）。WebGL 上下文创建失败时只渲染一个终止提示页，"全部功能照常可用"不成立 |
-| AC-75 | **部分（含高危缺陷 D1）** | `solved_pending` 状态与 `E_CUBE_ALREADY_SOLVED` 已实现；`auto_submit_on_solved` 默认已按 v2.0 改为 `false`（改文档对齐代码）；**超时豁免未实现**，同 AC-28 |
+| AC-75 | **已交付** | `solved_pending` 状态、`E_CUBE_ALREADY_SOLVED`、超时豁免均已实现；`auto_submit_on_solved` 默认 `false`。2026-10-26 评审修复轮补：`solved_pending` 下刷新/关闭页面结算为 `ended_solved` 且 `submit_ms` 保持 `null` |
 | AC-78 | **已交付** | F09a：从已还原态重放、每步用回放态上色、重置同时复位相机并停回放——第四轮代码级修复已完成 |
 | AC-79 | **部分** | 默认值 `false` 已在 v2.0 生效（文档侧）；但 `settings.ts` 里 `DEFAULT_SETTINGS.autoSubmitOnSolved` 仍是 `true`，且该字段**全库无消费者**。需要把它改成 `false` 或彻底删除，否则设置面板会显示一个不生效的开关 |
 | AC-80 | **已交付** | tab 组成、峰值 19 控件、非连续组合预览 `—` 拦截均与实现一致 |

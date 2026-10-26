@@ -240,3 +240,39 @@
 | 82 | D4/D5/D10/D9 | 帧预算可见降级、层描边 hover 接线、覆盖率门禁、three vendor chunk 拆分 |
 
 > 未完成：`D3` 的 `stickerLabels`（面中心字母）仍为 P2 未实现；`D7` 文件规模拆分未做；`agent_think_ms` 因事件流不含观察事件而无法派生。
+
+---
+
+## v2.2-dev 变更记录（2026-10-26 评审修复轮）
+
+> 触发：`docs/reviews/ob-cube-code-prd-review-full.md`（基线 `c6236e2`）的 7 个高严重度缺陷 + 6 个接口/统计问题。
+> 性质：**实现修复 + 必要的契约增补**。AC 编号未改动；对外字段只增不改，唯一语义变更（`next_observation` 可为 `null`）在下表逐条给出理由。
+> 裁定过程见 `docs/decisions/2026-10-26-review-fixes-ruling.md`；实现证据见 `docs/reports/2026-10-26-review-fix-report.md`。
+
+### A. 契约增补（`src/ob-cube/src/contracts.ts`）
+
+| # | 字段 / 类型 | 变更 | 兼容性 |
+|---|---|---|---|
+| 83 | `MERGE_WINDOW_MS` | 从 `ui/keyboard.ts` 上移到契约层（会话层要与键盘共用同一个 300ms 口径） | 常量只增；`ui/keyboard.ts` 继续 re-export，旧导入不破 |
+| 84 | `MoveResult.next_observation` | `Observation` → `Observation \| null` | **语义变更**：受限观察预算用尽、`after_move` 档本次已交付过观察时为 `null`。理由：旧实现无条件重算一份新观察，既绕过 24 次预算又不换编号（§8.2 C6 被架空）。键恒存在 |
+| 85 | `RunEvent.based_on_observation_id` | 新增，`string \| null` | 记录「本次决策依据哪次观察」。AC-43 的意图由**事件字段**承载，而不是 `applyMove` 返回值（AC-42 的 13 字段不含根级 id，两条 AC 曾互相矛盾） |
+| 86 | `RunEvent.view_after` | 新增，`ViewState \| null` | view 事件记录执行后的完整朝向；观察者回放据此逐步恢复视野。旧记录缺键时退化为初始朝向，不静默用终局朝向 |
+| 87 | `ChallengeResult.scramble` / `scramble_fingerprint` / `gen_algorithm_version` | 新增可选 | 只在挑战结束后由 `getChallengeResult()` 返回；历史记录据此重建题面，不再依赖「同一版生成器」。未结束时这三个键不存在 |
+| 88 | `ChallengeResult.events_dropped` | 新增可选 | 与 `events_truncated` 配对，说明缺口大小（只标 true 无法判断丢了 1 条还是 1800 条） |
+| 89 | `SessionOptions.mergeDoubleTap` | 新增，默认 `true` | 只影响键盘通道「步数耗尽判定是否等归并窗口关闭」，不改归并本身 |
+| 90 | `ObservationView.lockReason` | 新增取值 `'no-observation'` | restricted 档在首次交付前没有任何授权面，需要专门的锁定文案，不能复用「开始后可读取」 |
+
+### B. 行为修复（对外可观察）
+
+| # | 行为 | 变化 | 对应用例 |
+|---|---|---|---|
+| 91 | 题面门控 | `getChallengeInfo()` 在 `ready` / `running` / `paused` / `solved_pending` **全程**隐藏 `seed` / `scramble` / `facelet_string` / `state_fingerprint`；结束后才交出 | R01 |
+| 92 | 归并时机 | 双击归并前移到定稿之前：回到转前局面原子执行 180°，计步与终止判定只做一次；键盘 90° 撞步数上限时把判负推迟到窗口关闭 | R03 / R04 |
+| 93 | 观察交付 | 显式 `observe()` 与 `applyMove().next_observation` 走**同一个交付口**：都消耗预算、都递增编号、都刷新 after_move 的「已观察步数」 | R05 / R06 |
+| 94 | 观察者回放 | 按事件逐步累计 `view_after` 恢复每一时刻的授权视野，不再用结束时的朝向 | R10 |
+| 95 | 刷新结算 | `solved_pending` 被关闭/刷新时结算为 `ended_solved` 且 `submit_ms = null`（PRD §7.3 明文要求） | R08 |
+| 96 | 幂等重试 | 幂等命中提前到终态守卫之前：最后一步成功后的同 `op_id` 重试返回原结果，而不是抛 `ALREADY_SOLVED` | R07 |
+| 97 | 按 run 统计 | `resetRun()` 清零 `agentCalls` / `agentMoves`；`getChallengeResult(challengeId, runId)` 校验 runId，不符抛 `RUN_NOT_FOUND` | R09 |
+| 98 | 中位耗时 | 只统计同规则下的成功运行，并用 `solved_at_ms`（还原时刻）而非 `elapsed_ms`（含等待提交） | R12 |
+| 99 | 事件截断 | 非 view 事件本身超限时**保留尾部**（`end` 事件不丢），并落 `events_dropped` | R13 |
+| 100 | API 转动渲染 | API 驱动的一次转动后，3D 画面、授权面遮罩与相机朝向同帧对齐（旧实现只更新面板与日志） | R02（数据层） |

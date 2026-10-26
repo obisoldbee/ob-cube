@@ -32,7 +32,7 @@ import {
 import type { CubeState, MoveSpec, Vec3 } from '../engine';
 import { createPuzzle, replayScramble } from '../puzzle';
 import type { PuzzleRecord } from '../puzzle';
-import { COLOR_OF_FACE, CubeError, ENGINE_VERSION, FACE_ORDER, isEnded } from '../contracts';
+import { COLOR_OF_FACE, CubeError, ENGINE_VERSION, FACE_ORDER, MERGE_WINDOW_MS, isEnded } from '../contracts';
 import type {
   AllowedActions,
   ChallengeResult,
@@ -60,6 +60,12 @@ export interface SessionOptions {
   observationMode?: ObservationMode;
   dustMode?: boolean;
   clock?: Clock;
+  /**
+   * 键盘 300ms 双击归并开关（PRD §2.2 配置项，默认开）。
+   * 仅影响「键盘通道的步数耗尽判定是否等归并窗口关闭」——归并本身仍按
+   * `applyIntent(..., merged=true)` 的显式标记执行。
+   */
+  mergeDoubleTap?: boolean;
 }
 
 const DEFAULT_VIEW: ViewState = { up: 'U', front: 'F' };
@@ -85,6 +91,12 @@ let entropyCounter = 0;
 function entropySeed(): string {
   entropyCounter += 1;
   return `${Date.now().toString(36)}-${entropyCounter.toString(36)}`;
+}
+
+/** run_id 只需在本机会话内唯一；同一毫秒内连续两次重跑不能撞（R09）。 */
+function newRunId(): string {
+  entropyCounter += 1;
+  return `run-${Date.now().toString(36)}-${entropyCounter.toString(36)}`;
 }
 
 /** 法向量 → 面。几何层只给向量运算，面语义在这里收敛，不另起一套坐标系。 */
@@ -129,12 +141,36 @@ export class ChallengeSession {
   private agentMoves = 0;
   /** 当前帧内的 applyMove 调用数（AC-44 限流，beginFrame 清零） */
   private rateCount = 0;
+  /**
+   * 归并窗口内的「上一次 90° 转动」。保存**转前状态快照**，使窗口内的第二次同向
+   * 90° 能原子化为一条 X2：回滚到转前 → 一次性执行 180° → 只判一次终止。
+   * 这是 PRD §5.4「输入整形早于定稿」的实现基础（旧实现先提交再改日志，
+   * 会在步数边界上按两步判负）。
+   */
+  private lastTurn: {
+    before: CubeState;
+    event: RunEvent;
+    face: FaceId;
+    layers: readonly number[];
+    amount: 1 | 3;
+    at: number;
+  } | null = null;
+  /**
+   * 键盘 90° 撞上步数上限时，终止判定推迟到归并窗口关闭：
+   * 第二次按键可能把两步折成一步 X2，从而不触顶（R03）。
+   */
+  private pendingLimitDeadline: number | null = null;
+  /** 最近一次实际交付给参与者的观察快照（受限观察下 UI 只能读它，不能读实时状态） */
+  private lastDelivered: Observation | null = null;
+  /** 观察预算计数：每次「交付一份新颜色布局」+1（显式 observe 与操作后自动交付同规则） */
+  private deliveryCount = 0;
 
   readonly size: CubeSize;
   readonly timeLimitMs: number | null;
   readonly moveLimit: number | null;
   readonly observationMode: ObservationMode;
   readonly dustMode: boolean;
+  readonly mergeDoubleTap: boolean;
 
   constructor(options: SessionOptions) {
     this.size = options.size;
@@ -142,6 +178,7 @@ export class ChallengeSession {
     this.moveLimit = options.moveLimit ?? null;
     this.observationMode = options.observationMode ?? 'full';
     this.dustMode = options.dustMode ?? true;
+    this.mergeDoubleTap = options.mergeDoubleTap ?? true;
     this.clock = options.clock ?? systemClock;
     this.puzzle = createPuzzle({
       size: options.size,
@@ -150,7 +187,7 @@ export class ChallengeSession {
     });
     this.initialState = replayScramble(options.size, this.puzzle.scramble);
     this.state = this.initialState;
-    this.runId = `run-${Math.abs(this.puzzle.scramble_fingerprint.length)}-${Date.now().toString(36)}`;
+    this.runId = newRunId();
   }
 
   // ------------------------------------------------------------------ 只读视图
@@ -277,8 +314,15 @@ export class ChallengeSession {
     this.lastResult = null;
     this.lastSubmit = null;
     this.lastObservation = null;
+    this.lastTurn = null;
+    this.pendingLimitDeadline = null;
+    this.lastDelivered = null;
+    this.deliveryCount = 0;
+    // R09：统计必须按 run 清零，否则第二轮会继承上一轮的 Agent 调用次数
+    this.agentCalls = 0;
+    this.agentMoves = 0;
     this.view = { ...DEFAULT_VIEW };
-    this.runId = `run-${Date.now().toString(36)}`;
+    this.runId = newRunId();
   }
 
   start(): void {
@@ -314,12 +358,28 @@ export class ChallengeSession {
   }
 
   /**
-   * 页面在 running/paused 中被关闭或刷新（PRD §7.3 终止判定之一）：
-   * 尽力结算为 interrupted——已发生的事件全部保留，计时冻结在当前活跃时长。
+   * 页面在 running/paused/solved_pending 中被关闭或刷新（PRD §7.3 终止判定之一）：
+   *   running / paused → ended_interrupted（已发生的事件全部保留，计时冻结）；
+   *   solved_pending  → ended_solved，且 submit_ms 保持 null（PRD §7.3 明文要求，
+   *                     「已还原」是既成事实，不因没点提交而作废）。
    * 由宿主在 beforeunload 里同步调用；本方法自身不触碰存储。
    */
   interrupt(): void {
+    if (this.statusValue === 'solved_pending') {
+      this.statusValue = 'ended_solved';
+      this.pendingLimitDeadline = null;
+      this.endedAt = this.clock();
+      this.pushEvent('end', null, true, null);
+      this.lastSubmit = {
+        accepted: true,
+        status: 'ended_solved',
+        reason: '页面在已还原待提交时关闭（未提交，submit_ms 为 null）',
+        mismatch: null,
+      };
+      return;
+    }
     if (this.statusValue !== 'running' && this.statusValue !== 'paused') return;
+    this.pendingLimitDeadline = null;
     this.finish('ended_interrupted', '页面在运行中被关闭或刷新');
   }
 
@@ -334,6 +394,13 @@ export class ChallengeSession {
     if (this.statusValue === 'paused') return; // 真暂停：elapsed 冻结，不可能超时（PRD §7.2.1 P2'）
     // AC-28 / AC-75 / D1：已还原待提交的运行不得被超时覆盖——结果必须保持 solved。
     if (this.statusValue === 'solved_pending') return;
+    // 键盘 90° 撞上步数上限：等归并窗口关闭后再判负（R03）。窗口内第二次同向按
+    // 键会走 applyIntent 的归并分支，把两步折成一条 X2 重判，不会走到这里。
+    if (this.pendingLimitDeadline !== null && this.clock() >= this.pendingLimitDeadline) {
+      this.pendingLimitDeadline = null;
+      this.finish('ended_move_limit', '步数上限已到且尚未还原');
+      return;
+    }
     if (this.timeLimitMs !== null && this.elapsedMs() >= this.timeLimitMs) {
       this.finish('ended_timeout', '超出时间上限');
     }
@@ -366,12 +433,17 @@ export class ChallengeSession {
   // ------------------------------------------------------------------ 观察
 
   visibleFaces(): FaceId[] {
+    return this.visibleFacesFor(this.view);
+  }
+
+  /** 指定朝向下的授权面。观察者回放按每一步的朝向调用它恢复当时视野。 */
+  visibleFacesFor(view: ViewState): FaceId[] {
     if (this.observationMode === 'full') return [...FACE_ORDER];
-    if (this.observationMode === 'single_face') return [this.view.front];
+    if (this.observationMode === 'single_face') return [view.front];
     // three_faces / after_move / restricted 都按当前朝向露出上、前、右三面；
     // after_move 的差别在「何时允许观察」，不在可见面数量。
-    const right = faceOfNormal(rightOf(this.view.up, this.view.front));
-    return [this.view.up, this.view.front, right];
+    const right = faceOfNormal(rightOf(view.up, view.front));
+    return [view.up, view.front, right];
   }
 
   /** after_move 档：只有转动过、且本次转动后还没观察过时才放行。 */
@@ -392,42 +464,108 @@ export class ChallengeSession {
         '先调用 apply_move，转动后本次观察机会才会开放',
       );
     }
-    if (this.observationMode === 'restricted' && this.observeCount >= RESTRICTED_OBSERVE_BUDGET) {
+    if (!this.canDeliverObservation()) {
       throw new CubeError('E_OBSERVATION_BUDGET_EXHAUSTED', '受限观察次数已用尽', '只能基于已有信息继续操作');
     }
-    this.obsSeq += 1;
+    const observation = this.deliverObservation();
+    if (observation === null) {
+      // 预算检查与交付之间的兜底：不允许「检查通过却没交付」的静默分支。
+      throw new CubeError('E_OBSERVATION_BUDGET_EXHAUSTED', '受限观察次数已用尽', '只能基于已有信息继续操作');
+    }
     this.observeCount += 1;
-    this.lastObservedMoveCount = this.moveCount;
-    const observation = this.buildObservation();
-    this.lastObservation = observation;
     return observation;
   }
 
+  /**
+   * 只读投影，不推进 obsSeq、不计入观察预算。UI 用它刷新右栏。
+   *
+   * restricted 档只能读「已交付的那份快照」：若这里直接读实时状态，
+   * 观察面板就成了绕过 24 次预算的免费通道（预算用尽后仍能看到最新布局）。
+   */
   peekObservation(): Observation {
-    // 只读投影，不推进 obsSeq、不计入观察预算。UI 用它刷新右栏。
-    return this.buildObservation();
+    if (this.observationMode === 'restricted') {
+      return this.lastDelivered ?? this.buildLockedObservation();
+    }
+    return this.buildObservation(this.observationIdOf(this.obsSeq));
   }
 
-  private buildObservation(): Observation {
-    const visible = this.visibleFaces();
-    const faceColors: Partial<Record<FaceId, FaceGrid>> = {};
-    for (const face of visible) {
-      const grid = this.gridOf(face);
-      faceColors[face] = grid;
-    }
-    const allowed: AllowedActions = {
+  /** 观察预算是否还有余额（只有 restricted 有预算） */
+  private canDeliverObservation(): boolean {
+    return !(this.observationMode === 'restricted' && this.deliveryCount >= RESTRICTED_OBSERVE_BUDGET);
+  }
+
+  /**
+   * **唯一的观察交付点**。一次交付 = 消耗一次预算（restricted）+ 编号 +1 +
+   * 刷新「已观察步数」（after_move 的一次机会就此用掉）。
+   *
+   * 显式 `observe()` 与 `applyMove` 的 `next_observation` 走同一条路径——旧实现里
+   * `applyMove` 直接调用 `buildObservation()`，既不吃预算也不换编号，于是
+   * 「用尽 24 次后继续转动仍能拿到新颜色」且「多份不同快照共用一个 id」。
+   * 返回 null 表示当前不可交付（不得用空对象冒充一份观察）。
+   */
+  private deliverObservation(): Observation | null {
+    if (!this.canDeliverObservation()) return null;
+    this.obsSeq += 1;
+    this.deliveryCount += 1;
+    this.lastObservedMoveCount = this.moveCount;
+    const observation = this.buildObservation(this.observationIdOf(this.obsSeq));
+    this.lastObservation = observation;
+    this.lastDelivered = observation;
+    return observation;
+  }
+
+  private observationIdOf(seq: number): string {
+    // o0 = 尚未交付过任何观察（只出现在 UI 只读投影里，不进事件、不进 API 结果）
+    return `${this.runId}:o${Math.max(0, seq)}`;
+  }
+
+  /**
+   * after_move 档不做自动交付：该档语义是「转动后开放一次观察」，必须由调用方
+   * 显式 `observe()` 取用；若 `applyMove` 顺手把观察塞回去，这道门控就形同虚设。
+   */
+  private shouldAutoDeliver(): boolean {
+    return this.observationMode !== 'after_move';
+  }
+
+  /** 无授权交付时的投影：键齐全、面为空，明确表示「当前没有可用的观察」 */
+  private buildLockedObservation(): Observation {
+    return {
+      challenge_id: this.puzzle.challenge_id,
+      cube_size: this.size,
+      observation_id: this.observationIdOf(this.obsSeq),
+      view_orientation: { ...this.view },
+      visible_faces: [],
+      face_colors: {},
+      allowed_actions: this.allowedActions(),
+      elapsed_ms: this.elapsedMs(),
+      remaining_ms: this.remainingMs(),
+      move_count: this.moveCount,
+      status: this.statusValue,
+    };
+  }
+
+  private allowedActions(): AllowedActions {
+    return {
       notation: moveCatalogNotations(this.size),
       layer_indices: Array.from({ length: this.size }, (_, i) => i + 1),
       can_rotate_view: true,
     };
+  }
+
+  private buildObservation(observationId: string): Observation {
+    const visible = this.visibleFaces();
+    const faceColors: Partial<Record<FaceId, FaceGrid>> = {};
+    for (const face of visible) {
+      faceColors[face] = this.gridOf(face);
+    }
     return {
       challenge_id: this.puzzle.challenge_id,
       cube_size: this.size,
-      observation_id: `${this.runId}:o${Math.max(1, this.obsSeq)}`,
+      observation_id: observationId,
       view_orientation: { ...this.view },
       visible_faces: visible,
       face_colors: faceColors,
-      allowed_actions: allowed,
+      allowed_actions: this.allowedActions(),
       elapsed_ms: this.elapsedMs(),
       remaining_ms: this.remainingMs(),
       move_count: this.moveCount,
@@ -461,7 +599,10 @@ export class ChallengeSession {
       throw new CubeError('E_VIEW_ORIENTATION_INVALID', 'up 与 front 不能共线', '请选两个相邻面');
     }
     this.view = { ...next };
-    this.pushEvent('view', null, true, null);
+    const event = this.pushEvent('view', null, true, null);
+    // AC-67 / 观察者回放：绝对朝向没有单轴语义，但必须记下**结果朝向**，
+    // 否则回放只能拿结束时的视角倒推每一步（历史各步会全部错位）。
+    event.view_after = { ...this.view };
     return this.view;
   }
 
@@ -486,23 +627,25 @@ export class ChallengeSession {
     event.axis = AXIS_CHARS[FACE_GEOMETRY[invariantFace].axis];
     event.direction = direction;
     event.steps = 1;
+    event.view_after = { ...this.view };
     return this.view;
   }
 
   // ------------------------------------------------------------------ 操作
 
-  applyMoveNotation(raw: string, opId?: string): MoveResult {
+  /**
+   * Agent 通道（也是记法输入框的通道）。`basedOn` 是调用方声明的「本次决策依据哪次
+   * 观察」，写进事件而不是返回值（AC-42 的 13 字段不含根级 observation_id）。
+   * `deliver=false` 供人类记法输入框使用：人类通道不消耗受限观察预算。
+   */
+  applyMoveNotation(raw: string, opId?: string, basedOn?: string | null, deliver = true): MoveResult {
     this.agentCalls += 1;
     this.tick();
     this.guardStarted();
-    this.guardNotEnded();
-    if (this.statusValue === 'paused') {
-      throw new CubeError('E_CHALLENGE_PAUSED', '挑战已暂停，计时已冻结', '先继续挑战');
-    }
-    if (this.statusValue === 'solved_pending') {
-      throw new CubeError('E_CUBE_ALREADY_SOLVED', '魔方已还原，等待提交', '请调用 submitSolution');
-    }
     this.guardRate();
+    // 幂等命中必须早于「已结束 / 已还原待提交」两个守卫：最后一步成功之后的重试
+    // 若先撞终态守卫，同一个 op_id 会从「返回原结果」变成「抛 ALREADY_SOLVED」，
+    // 调用方据此无法判断到底执行没执行（R07）。
     if (opId) {
       const cached = this.opCache.get(opId);
       if (cached) {
@@ -511,6 +654,14 @@ export class ChallengeSession {
         }
         return { ...cached, deduplicated: true };
       }
+    }
+    this.resolvePendingLimitNow();
+    this.guardNotEnded();
+    if (this.statusValue === 'paused') {
+      throw new CubeError('E_CHALLENGE_PAUSED', '挑战已暂停，计时已冻结', '先继续挑战');
+    }
+    if (this.statusValue === 'solved_pending') {
+      throw new CubeError('E_CUBE_ALREADY_SOLVED', '魔方已还原，等待提交', '请调用 submitSolution');
     }
     const spec = parseMove(raw, this.size);
     if (spec.kind === 'rotation') {
@@ -522,10 +673,20 @@ export class ChallengeSession {
         '改变观察方向请用 rotate_view；apply_move 只接受层转动',
       );
     }
-    return this.commit(spec, opId ?? null, 'api', spec.raw);
+    return this.commit(spec, opId ?? null, 'api', spec.raw, {
+      basedOn: basedOn ?? null,
+      deliver,
+    });
   }
 
-  /** UI 与 Agent 共用的唯一提交点。`amount` 是两次按键共同的转向量（归并时两次相同）。 */
+  /**
+   * UI 与 Agent 共用的唯一提交点。`amount` 是两次按键共同的转向量（归并时两次相同）。
+   *
+   * **归并必须发生在定稿之前**（PRD §5.4 开放事件）：窗口内的第二次同向 90° 走
+   * `commitMerged`，回到第一次按键前的局面原子地执行一次 180°，终止判定只做一次。
+   * 旧实现「先 commit 再改日志」会在步数边界上先按两步判负（R03），
+   * 且第二次按键可能已被终态守卫拒绝。
+   */
   applyIntent(
     face: FaceId,
     layers: readonly number[],
@@ -535,16 +696,65 @@ export class ChallengeSession {
   ): MoveResult {
     this.tick();
     this.guardStarted();
-    this.guardNotEnded();
     this.guardNotPaused();
+    // 先给「为什么结束」（超时 / 步数耗尽），再谈「没在进行中」——
+    // 否则玩家在步数用尽后按键只会看到一句无信息量的 NOT_STARTED。
+    this.guardNotEnded();
     if (this.statusValue !== 'running') {
       throw new CubeError('E_CHALLENGE_NOT_STARTED', '挑战未在进行中', '请先开始挑战');
     }
+    const now = this.clock();
+    if (merged && amount !== 2 && this.canMerge(face, layers, amount, now)) {
+      return this.commitMerged(face, layers, amount, channel);
+    }
+    // 不是归并：上一次按键的归并机会已经消失，此时才把它按步数上限判负。
+    this.resolvePendingLimitNow();
+    this.guardNotEnded();
     const notation = describeMove({ size: this.size, face, layers, amount });
     const spec = parseMove(notation, this.size);
-    const result = this.commit(spec, null, channel, spec.raw);
-    if (merged) this.mergeLastIntoDouble(face, layers, amount, channel);
-    return result;
+    return this.commit(spec, null, channel, spec.raw, {
+      // 只有键盘的 90° 才可能被下一次同键按下折成 X2，因而也只有它需要推迟判负。
+      deferLimit: this.mergeDoubleTap && channel === 'keyboard' && amount !== 2,
+      trackMerge: amount !== 2 ? { face, layers } : null,
+    });
+  }
+
+  /** 窗口内的第二次同向按键能否折成一条 X2（面、层集合、转向量、时间窗全一致） */
+  private canMerge(face: FaceId, layers: readonly number[], amount: 1 | 2 | 3, now: number): boolean {
+    const last = this.lastTurn;
+    if (last === null) return false;
+    if (amount === 2 || last.amount !== amount) return false;
+    if (last.face !== face) return false;
+    if (last.layers.length !== layers.length) return false;
+    if (!last.layers.every((value, index) => value === layers[index])) return false;
+    return now - last.at <= MERGE_WINDOW_MS;
+  }
+
+  /**
+   * 把「上一次 90°」与本次 90° 折成一条 180°：回到转前状态、撤掉半成品事件、
+   * 一次性执行 X2 并重新判定。状态轨迹与直接提交 X2 完全等价（R03：同题同解，
+   * 显式 R2 与合法双击得到相同的步数、日志与胜负）。
+   */
+  private commitMerged(face: FaceId, layers: readonly number[], amount: 1 | 3, channel: InputChannel): MoveResult {
+    const turn = this.lastTurn;
+    if (turn === null) {
+      // canMerge 保证不可达；防御式回落到普通提交，不制造半个归并状态。
+      const notation = describeMove({ size: this.size, face, layers, amount });
+      return this.commit(parseMove(notation, this.size), null, channel, null, {});
+    }
+    this.pendingLimitDeadline = null;
+    this.state = turn.before;
+    const index = this.events.lastIndexOf(turn.event);
+    if (index >= 0) this.events.splice(index, 1);
+    // 半成品事件的 agentMoves 增量一并撤回，归并后只算一步。
+    if (turn.event.input_channel === 'api') this.agentMoves = Math.max(0, this.agentMoves - 1);
+    this.lastTurn = null;
+    const notation = describeMove({ size: this.size, face, layers, amount: 2 });
+    const spec = parseMove(notation, this.size);
+    return this.commit(spec, null, channel, null, {
+      mergedFrom: [turn.event.move ?? '', turn.event.move ?? ''],
+      atMs: turn.event.at_ms,
+    });
   }
 
   private commit(
@@ -552,6 +762,16 @@ export class ChallengeSession {
     opId: string | null,
     channel: InputChannel,
     rawInput: string | null,
+    options: {
+      basedOn?: string | null;
+      deliver?: boolean;
+      /** 窗口内可能被折成 X2：撞上步数上限时先不判负（R03） */
+      deferLimit?: boolean;
+      /** 记录为可归并的「上一次 90°」：保留面、层集合与转前状态 */
+      trackMerge?: { face: FaceId; layers: readonly number[] } | null;
+      mergedFrom?: readonly string[];
+      atMs?: number;
+    } = {},
   ): MoveResult {
     if (this.moveLimit !== null && this.moveCount >= this.moveLimit) {
       // 步数耗尽只在「已还原」时让位于提交；其余一律终止。
@@ -563,8 +783,9 @@ export class ChallengeSession {
       }
       throw new CubeError('E_MOVE_LIMIT_REACHED', '步数已达上限', '可尝试提交解答；未还原则本局失败');
     }
-    const from = fingerprintState(this.state);
-    this.state = engineApplyMove(this.state, spec);
+    const before = this.state;
+    const from = fingerprintState(before);
+    this.state = engineApplyMove(before, spec);
     const to = fingerprintState(this.state);
     const protocolLayers = protocolLayerSet(spec);
     const event = this.pushEvent('move', spec.normalized, true, null);
@@ -577,6 +798,9 @@ export class ChallengeSession {
     event.turn_amount = spec.amount === 2 ? 180 : 90;
     event.input_channel = channel;
     event.raw_input = rawInput;
+    event.based_on_observation_id = options.basedOn ?? event.observation_id;
+    if (options.mergedFrom) event.merged_from = [...options.mergedFrom];
+    if (options.atMs !== undefined) event.at_ms = options.atMs;
     const solved = evaluateSolved(this.state).solved;
     if (solved && this.statusValue === 'running') {
       this.statusValue = 'solved_pending';
@@ -589,8 +813,12 @@ export class ChallengeSession {
     ) {
       // PRD §7.3：判定时机是「第 move_limit 步执行后」——已提交步数达上限且未还原
       // 就立即按步数耗尽结算，不得等到第 N+1 步提交才醒（还原优先，见上分支）。
-      this.finish('ended_move_limit', '步数上限已到且尚未还原');
+      // 唯一例外：键盘 90° 且归并窗口还没关——第二次按键可能把这一步也折进 X2，
+      // 折完就不再触顶。此时把判定推迟到 tick() 的 deadline 上。
+      if (options.deferLimit) this.pendingLimitDeadline = this.clock() + MERGE_WINDOW_MS;
+      else this.finish('ended_move_limit', '步数上限已到且尚未还原');
     }
+    const deliver = options.deliver !== false && this.shouldAutoDeliver();
     const result: MoveResult = {
       op_id: opId,
       deduplicated: false,
@@ -605,51 +833,41 @@ export class ChallengeSession {
       elapsed_ms: this.elapsedMs(),
       remaining_ms: this.remainingMs(),
       solved: evaluateSolved(this.state).solved,
-      next_observation: this.buildObservation(),
+      // 与 observe() 同一个交付口：预算用尽时返回 null，不再夹带新颜色（R05/R06）
+      next_observation: deliver ? this.deliverObservation() : null,
     };
     if (opId) this.opCache.set(opId, result);
     this.lastResult = result;
-    this.agentMoves += 1;
+    if (channel === 'api') this.agentMoves += 1;
+    if (options.trackMerge && spec.amount !== 2) {
+      this.lastTurn = {
+        before,
+        event,
+        face: options.trackMerge.face,
+        layers: [...options.trackMerge.layers],
+        amount: spec.amount,
+        at: this.clock(),
+      };
+    } else {
+      this.lastTurn = null;
+    }
     return result;
   }
 
-  /**
-   * 180° 双击归并：**只合并计步与日志，不回退状态、不重放动画**。
-   * 状态已经被两次同向 90° 推进，其几何结果本就等价于 X2（SPEC §11 坑 1）。
-   * `amount` 是两次按键共同的转向量：双击 X → X2，双击 X' → 也是 X2（X' X' = 180°）。
-   */
-  private mergeLastIntoDouble(
-    face: FaceId,
-    layers: readonly number[],
-    amount: 1 | 2 | 3,
-    channel: InputChannel,
-  ): void {
-    const last = this.events[this.events.length - 1];
-    const prev = this.events[this.events.length - 2];
-    if (!last || !prev || last.type !== 'move' || prev.type !== 'move') return;
-    if (last.move === null || prev.move === null) return;
-    if (amount === 2) return; // 两次 180° 相加是 360°，不是任何单条记法，不归并
-    const mergedNotation = describeMove({ size: this.size, face, layers, amount: 2 });
-    const expected = describeMove({ size: this.size, face, layers, amount });
-    if (last.move !== expected || prev.move !== expected) return;
-    this.events.splice(this.events.length - 2, 2);
-    const merged = this.pushEvent('move', mergedNotation, true, null);
-    merged.merged_from = [prev.move, last.move];
-    merged.from_fingerprint = prev.from_fingerprint;
-    merged.to_fingerprint = last.to_fingerprint;
-    // 归并后的四字段与直接提交 X2 完全一致（AC-63：turn_amount=180、层轴不变）
-    const mergedSpec = parseMove(mergedNotation, this.size);
-    const protocolLayers = protocolLayerSet(mergedSpec);
-    merged.axis = mergedSpec.axis;
-    merged.layer_set = protocolLayers;
-    merged.layer_count = protocolLayers.length;
-    merged.turn_amount = 180;
-    merged.input_channel = channel;
-    merged.raw_input = null;
-    this.lastResult = this.lastResult
-      ? { ...this.lastResult, move: mergedNotation, turn_amount: 180, move_count: this.moveCount }
-      : null;
+  /** 归并窗口内不判负：等 tick() 到点再结算（窗口内没有第二次按键就是真的超步）。 */
+  private resolvePendingLimitNow(): void {
+    if (this.pendingLimitDeadline === null) return;
+    this.pendingLimitDeadline = null;
+    if (!isEnded(this.statusValue) && this.statusValue !== 'solved_pending') {
+      this.finish('ended_move_limit', '步数上限已到且尚未还原');
+    }
   }
+
+  /**
+   * 旧实现在「提交之后」才改日志，会把一次双击拆成两步参与计步与终止判定
+   * （R03 的回归来源）。归并逻辑已前移到 `applyIntent → commitMerged`，
+   * 这里不再保留第二条合并路径——两条路径必然漂移。
+   */
 
   getLastActionResult(): MoveResult | null {
     return this.lastResult;
@@ -705,6 +923,8 @@ export class ChallengeSession {
       throw new CubeError('E_RUN_NOT_FINISHED', '本次运行尚未结束', '结束后再查询结果');
     }
     const metrics = this.moveMetrics();
+    const exported = this.exportedEvents();
+    const dropped = this.events.length - exported.length;
     return {
       rules: this.rules,
       status: this.statusValue,
@@ -712,7 +932,7 @@ export class ChallengeSession {
       move_count: this.moveCount,
       elapsed_ms: this.elapsedMs(),
       tps: this.tps(),
-      events: this.exportedEvents(),
+      events: exported,
       initial_fingerprint: fingerprintState(this.initialState),
       final_fingerprint: fingerprintState(this.state),
       ended_reason: this.lastSubmit?.reason ?? null,
@@ -725,17 +945,25 @@ export class ChallengeSession {
       first_move_ms: this.firstMoveMs(),
       solved_at_ms: this.solvedAtMs(),
       submit_ms: this.submitMs(),
-      ...(this.events.length > MAX_RECORDED_EVENTS ? { events_truncated: true } : {}),
+      // PRD §13.1 可复现四件套：结束后才交出打乱序列（未结束前等于交出题面）
+      scramble: [...this.puzzle.scramble],
+      scramble_fingerprint: this.puzzle.scramble_fingerprint,
+      gen_algorithm_version: this.puzzle.generation.algorithm_version,
+      ...(dropped > 0 ? { events_truncated: true, events_dropped: dropped } : {}),
     };
   }
 
   /**
-   * PRD §10.4：超出上限时只保留前 2000 条非 view 事件——view 事件优先丢弃，
-   * move / pause / resume / submit / end 优先保留。最终状态由指纹字段承载，不受截断影响。
+   * PRD §10.4：超出上限时先丢 view 事件（move / pause / resume / submit / end 优先保留）。
+   * 若非 view 事件本身就超限，**保留尾部**而不是头部——头部丢掉的是开场，
+   * 尾部丢掉的是「最后怎么结束的」，后者对复盘与结果判定更关键。
+   * 无论哪种截断，`events_truncated` + `events_dropped` 都必须能说明缺口大小。
    */
   private exportedEvents(): RunEvent[] {
     if (this.events.length <= MAX_RECORDED_EVENTS) return [...this.events];
-    return this.events.filter((event) => event.type !== 'view').slice(0, MAX_RECORDED_EVENTS);
+    const withoutViews = this.events.filter((event) => event.type !== 'view');
+    if (withoutViews.length <= MAX_RECORDED_EVENTS) return withoutViews;
+    return withoutViews.slice(withoutViews.length - MAX_RECORDED_EVENTS);
   }
 
   /** 三种计步口径（AC-49）：从已定稿事件重算，不依赖内部计数。 */
@@ -775,7 +1003,7 @@ export class ChallengeSession {
       type,
       at_ms: this.elapsedMs(),
       move,
-      observation_id: `${this.runId}:o${Math.max(1, this.obsSeq)}`,
+      observation_id: this.observationIdOf(this.obsSeq),
       from_fingerprint: null,
       to_fingerprint: null,
       ok,
@@ -789,6 +1017,8 @@ export class ChallengeSession {
       raw_input: null,
       direction: null,
       steps: null,
+      based_on_observation_id: null,
+      view_after: null,
     };
     this.events.push(event);
     return event;
@@ -834,4 +1064,31 @@ export class ChallengeSession {
 
 export function solvedStateFingerprint(size: CubeSize): string {
   return fingerprintState(createSolvedState(size));
+}
+
+/**
+ * 回放到第 `step` 步时的朝向：按事件顺序累计 `view_after`，遇到第 step 步的 move
+ * 就停（该步之后的视角变化不属于这一刻）。
+ *
+ * 观察者回放必须用它，不能用 `session.viewOrientation`——那是**结束时**的朝向，
+ * 会让整段回放按最后一刻的视野展示（R10）。旧记录没有 `view_after` 时保持初值，
+ * 退化为「按初始朝向回放」，而不是静默用终局朝向。
+ */
+export function viewAtStep(
+  events: readonly RunEvent[],
+  step: number,
+  initial: ViewState = DEFAULT_VIEW,
+): ViewState {
+  let view: ViewState = { ...initial };
+  let moves = 0;
+  for (const event of events) {
+    // 已到目标步数就停：第 step 步**之后**的视角变化不属于这一刻。
+    if (moves >= step) break;
+    if (event.type === 'move' && event.ok) {
+      moves += 1;
+      continue;
+    }
+    if (event.type === 'view' && event.view_after) view = event.view_after;
+  }
+  return view;
 }

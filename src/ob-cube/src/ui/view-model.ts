@@ -66,8 +66,8 @@ export interface ObservationView {
   /** 已授权面 → 贴纸网格；未授权面在此处不出现（而不是出现后置空） */
   readonly faceColors: Partial<Record<FaceId, FaceGrid>>;
   readonly locked: boolean;
-  /** 锁定原因（未开始 / 已暂停），驱动锁定态提示文案；未锁定为 null */
-  readonly lockReason: 'not-started' | 'paused' | null;
+  /** 锁定原因（未开始 / 已暂停 / 本档尚未交付观察），驱动锁定态提示文案；未锁定为 null */
+  readonly lockReason: 'not-started' | 'paused' | 'no-observation' | null;
   readonly observationId: string | null;
   readonly visibleFaces: readonly FaceId[];
 }

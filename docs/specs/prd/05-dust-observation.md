@@ -32,7 +32,9 @@
 > 1. **枚举名统一为代码口径**：`full` / `three_faces` / `single_face` / `after_move` / `restricted`（字面真源 `src/ob-cube/src/contracts.ts` 的 `ObservationMode`）。v1.10 写的 `three_face` / `one_face` 与 ARCHITECTURE v1.4 写的 `three_face` / `single_face` / `limited` 全部作废——三方三个样是本轮排查发现的矛盾之一。
 > 2. **观察次数上限的错误码分开**：v1.10 说"已达上限时 `observe` 返回 `OBSERVATION_DENIED`"，但实现把三种拒绝分成了三个独立码——`E_OBSERVATION_BUDGET_EXHAUSTED`（次数用尽）、`E_OBSERVATION_REQUIRES_MOVE`（`after_move` 档尚未转动）、`E_STALE_OBSERVATION`（观察已过期）。**v2.0 取实现口径**：分码比一个笼统的 `OBSERVATION_DENIED` 更有诊断价值，Agent 能据此知道该做什么（继续转 / 已无预算）。`OBSERVATION_DENIED` 这个短名从 v2.0 起不再使用。
 >
-> **交付现状**：引擎侧 `three_faces` / `single_face` / `restricted` 已实现且有测试覆盖；`after_move` **无门控逻辑**；生产环境**无配置入口**（`settings.ts` 的 `ChallengeConfig` 无该字段、`wiring` 创建会话时不传，恒为 `full`）。AC-19 / AC-20 / AC-65 目前只能在单测里成立。降级理由与 P1 首要项见 [`01-product-scope.md`](01-product-scope.md) §3.3。
+> **交付现状（2026-10-26 更正）**：五档全部实现且有测试覆盖。`after_move` 有门控（未转动时 `observe()` 抛 `E_OBSERVATION_REQUIRES_MOVE`）；`restricted` 的 24 次预算同时约束显式 `observe()` 与 `applyMove` 的自动观察；配置入口已落地（`ChallengeConfig.observationMode` + 配置面板 + URL `?observe=`，`wiring` 逐次传入）。AC-19 / AC-20 / AC-65 除单测外已在运行路径上成立。P1 保留原因与后续项见 [`01-product-scope.md`](01-product-scope.md) §3.3。
+>
+> **2026-10-26 评审修复轮补充**：此前存在三条绕过路径——`applyMove` 的自动观察不消耗预算、观察面板直接读实时状态、相机可拖到未授权面。三者已按「一次观察 = 交付一份新颜色布局」统一：自动观察与显式观察共用同一交付口，面板只显示已交付的快照，3D 画面按 `visible_faces` 加遮罩。裁定见 [`../../decisions/2026-10-26-review-fixes-ruling.md`](../../decisions/2026-10-26-review-fixes-ruling.md) R-4。
 
 > **注**：本表曾误引 AC-21~AC-26（那是计步与还原判定的编号），已在 v1.2 修正。C1–C6 与 AC 的对应关系以本表为准。
 
