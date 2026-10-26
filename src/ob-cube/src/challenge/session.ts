@@ -113,6 +113,8 @@ export class ChallengeSession {
   private view: ViewState = { ...DEFAULT_VIEW };
   private obsSeq = 0;
   private observeCount = 0;
+  /** after_move 档：上次成功观察时的步数。−1 = 尚未观察过（开局允许一次） */
+  private lastObservedMoveCount = -1;
   private attemptsLeft = SUBMIT_ATTEMPTS;
   private runId: string;
   private readonly opCache = new Map<string, MoveResult>();
@@ -242,6 +244,7 @@ export class ChallengeSession {
     this.events.length = 0;
     this.obsSeq = 0;
     this.observeCount = 0;
+    this.lastObservedMoveCount = -1;
     this.attemptsLeft = SUBMIT_ATTEMPTS;
     this.opCache.clear();
     this.rateCount = 0;
@@ -303,6 +306,8 @@ export class ChallengeSession {
   tick(): void {
     if (this.startedAt === null || isEnded(this.statusValue)) return;
     if (this.statusValue === 'paused') return; // 真暂停：elapsed 冻结，不可能超时（PRD §7.2.1 P2'）
+    // AC-28 / AC-75 / D1：已还原待提交的运行不得被超时覆盖——结果必须保持 solved。
+    if (this.statusValue === 'solved_pending') return;
     if (this.timeLimitMs !== null && this.elapsedMs() >= this.timeLimitMs) {
       this.finish('ended_timeout', '超出时间上限');
     }
@@ -337,8 +342,16 @@ export class ChallengeSession {
   visibleFaces(): FaceId[] {
     if (this.observationMode === 'full') return [...FACE_ORDER];
     if (this.observationMode === 'single_face') return [this.view.front];
+    // three_faces / after_move / restricted 都按当前朝向露出上、前、右三面；
+    // after_move 的差别在「何时允许观察」，不在可见面数量。
     const right = faceOfNormal(rightOf(this.view.up, this.view.front));
     return [this.view.up, this.view.front, right];
+  }
+
+  /** after_move 档：只有转动过、且本次转动后还没观察过时才放行。 */
+  private observationUnlocked(): boolean {
+    if (this.observationMode !== 'after_move') return true;
+    return this.lastObservedMoveCount !== this.moveCount;
   }
 
   observe(): Observation {
@@ -346,11 +359,19 @@ export class ChallengeSession {
     this.guardStarted();
     this.guardNotEnded();
     this.guardNotPaused();
+    if (!this.observationUnlocked()) {
+      throw new CubeError(
+        'E_OBSERVATION_REQUIRES_MOVE',
+        '本档观察需先完成一次转动',
+        '先调用 apply_move，转动后本次观察机会才会开放',
+      );
+    }
     if (this.observationMode === 'restricted' && this.observeCount >= RESTRICTED_OBSERVE_BUDGET) {
       throw new CubeError('E_OBSERVATION_BUDGET_EXHAUSTED', '受限观察次数已用尽', '只能基于已有信息继续操作');
     }
     this.obsSeq += 1;
     this.observeCount += 1;
+    this.lastObservedMoveCount = this.moveCount;
     const observation = this.buildObservation();
     this.lastObservation = observation;
     return observation;
@@ -698,7 +719,9 @@ export class ChallengeSession {
       remaining_ms: this.remainingMs(),
       move_limit: this.moveLimit,
       is_solved: evaluateSolved(this.state).solved,
-      observation_allowed: this.statusValue === 'running' || this.statusValue === 'solved_pending',
+      observation_allowed:
+        (this.statusValue === 'running' || this.statusValue === 'solved_pending') &&
+        this.observationUnlocked(),
     };
   }
 

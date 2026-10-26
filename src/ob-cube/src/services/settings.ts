@@ -2,7 +2,7 @@
  * settings.ts —— 用户设置的唯一读写口（storage 之上的一层，UI 不直接碰 storage）
  */
 
-import type { CubeSize } from '../contracts';
+import type { CubeSize, ObservationMode } from '../contracts';
 import type { LocalStore } from './storage';
 
 /** 挑战配置（PRD §2.2 配置表）。参与者/蒙尘以外的字段改动 = 换一道题。 */
@@ -20,6 +20,8 @@ export interface ChallengeConfig {
   readonly seedText: string;
   /** puzzleSource='preset' 时生效，内置题库条目 id */
   readonly presetId: string | null;
+  /** F14 观察模式（PRD §8.2 C6）。默认 full */
+  readonly observationMode: ObservationMode;
 }
 
 export interface AppSettings {
@@ -45,6 +47,7 @@ export const DEFAULT_CHALLENGE_CONFIG: ChallengeConfig = {
   puzzleSource: 'random',
   seedText: '',
   presetId: null,
+  observationMode: 'full',
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -54,7 +57,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   stickerLabels: false,
   monoMode: false,
   mergeDoubleTap: true,
-  autoSubmitOnSolved: true,
+  // AC-79：默认 false，人类与 Agent 相同；接线前不得有代码路径据此自动结算。
+  autoSubmitOnSolved: false,
 };
 
 const TIME_LIMIT_BOUNDS = { minSec: 10, maxSec: 180 * 60 } as const;
@@ -70,6 +74,18 @@ export function isLegalMoveLimit(moves: number): boolean {
 
 export function isLegalSeedText(seed: string): boolean {
   return seed.length >= 1 && seed.length <= SEED_MAX_LEN;
+}
+
+const OBSERVATION_MODES: readonly ObservationMode[] = [
+  'full',
+  'three_faces',
+  'single_face',
+  'after_move',
+  'restricted',
+];
+
+export function isObservationMode(value: unknown): value is ObservationMode {
+  return typeof value === 'string' && (OBSERVATION_MODES as readonly string[]).includes(value);
 }
 
 function coerceChallenge(input: unknown): { value: ChallengeConfig; repaired: boolean } {
@@ -103,6 +119,7 @@ function coerceChallenge(input: unknown): { value: ChallengeConfig; repaired: bo
       raw.puzzleSource === 'seed' || raw.puzzleSource === 'preset' ? raw.puzzleSource : 'random',
     seedText,
     presetId: typeof raw.presetId === 'string' ? raw.presetId : null,
+    observationMode: isObservationMode(raw.observationMode) ? raw.observationMode : fallback.observationMode,
   };
   if (value !== fallback && (typeof raw.dustMode !== 'boolean')) repaired = true;
   return { value, repaired };

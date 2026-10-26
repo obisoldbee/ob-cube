@@ -25,6 +25,7 @@ import {
   isLegalMoveLimit,
   isLegalSeedText,
   isLegalTimeLimitSec,
+  isObservationMode,
   settings,
 } from '../services';
 import { namespaced } from '../services/storage';
@@ -38,7 +39,7 @@ import { layersOf } from '../ui/keymap';
 import type { TurnIntent } from '../ui/keymap';
 import type { ViewStep } from '../ui/keyboard';
 import type { AgentView, ChallengeView, ConfigView, LogRow, ObservationView, ResultView } from '../ui/view-model';
-import type { ChallengeStatus, CubeSize, FaceId, ViewState } from '../contracts';
+import type { ChallengeStatus, CubeSize, FaceId, ObservationMode, ViewState } from '../contracts';
 import { isCubeError, isEnded } from '../contracts';
 
 /** 运行期配置：settings.challenge + 阶数 + URL 覆盖合并后的单一事实 */
@@ -47,6 +48,7 @@ interface RunConfig {
   timeLimitMs: number | null;
   moveLimit: number | null;
   dustMode: boolean;
+  observationMode: ObservationMode;
   participant: 'human' | 'agent';
   puzzleSource: ChallengeConfig['puzzleSource'];
   seedText: string;
@@ -70,6 +72,9 @@ function readUrlOverrides(): Partial<RunConfig> & { autostart?: boolean } {
   else if (params.get('moves') === '0') out.moveLimit = null;
   const seed = params.get('seed')?.trim() ?? '';
   if (isLegalSeedText(seed)) out.urlSeed = seed;
+  // F14：观察模式可由 URL 旁路指定（?observe=three_faces 等），非法值忽略。
+  const observe = params.get('observe');
+  if (isObservationMode(observe)) out.observationMode = observe;
   if (params.get('autostart') === '1') out.autostart = true;
   return out;
 }
@@ -83,6 +88,7 @@ function initialConfig(): RunConfig & { autostart: boolean } {
     timeLimitMs: url.timeLimitMs !== undefined ? url.timeLimitMs : stored.challenge.timeLimitSec === null ? null : stored.challenge.timeLimitSec * 1000,
     moveLimit: url.moveLimit !== undefined ? url.moveLimit : stored.challenge.moveLimit,
     dustMode: stored.challenge.dustMode,
+    observationMode: url.observationMode ?? stored.challenge.observationMode,
     participant: stored.challenge.participant,
     puzzleSource: url.urlSeed !== undefined ? 'seed' : stored.challenge.puzzleSource,
     seedText: url.urlSeed ?? stored.challenge.seedText,
@@ -119,6 +125,7 @@ export function bootstrap(host: HTMLElement): void {
       seed: resolveSeed(keepSeedOf),
       timeLimitMs: config.timeLimitMs,
       moveLimit: config.moveLimit,
+      observationMode: config.observationMode,
       dustMode: config.dustMode,
     });
   }
@@ -247,6 +254,7 @@ export function bootstrap(host: HTMLElement): void {
       puzzleSource: config.puzzleSource,
       seedText: config.seedText,
       presetId: config.presetId,
+      observationMode: config.observationMode,
       presets: presetOptions(),
       validation: null,
     };
@@ -448,6 +456,7 @@ export function bootstrap(host: HTMLElement): void {
         puzzleSource: config.puzzleSource,
         seedText: config.seedText,
         presetId: config.presetId,
+        observationMode: config.observationMode,
       },
     });
   }
@@ -502,6 +511,7 @@ export function bootstrap(host: HTMLElement): void {
         size: config.size,
         timeLimitMs: config.timeLimitMs,
         moveLimit: config.moveLimit,
+        observationMode: config.observationMode,
         dustMode: config.dustMode,
       }));
       workspace.toast('已生成新题面，点「开始挑战」计时');
@@ -593,6 +603,7 @@ export function bootstrap(host: HTMLElement): void {
         size: config.size,
         timeLimitMs: config.timeLimitMs,
         moveLimit: config.moveLimit,
+        observationMode: config.observationMode,
         dustMode: config.dustMode,
       });
       swapSession(next);
@@ -612,6 +623,7 @@ export function bootstrap(host: HTMLElement): void {
       }
       if (patch.moveLimit !== undefined) config.moveLimit = patch.moveLimit;
       if (patch.dustMode !== undefined) config.dustMode = patch.dustMode;
+      if (patch.observationMode !== undefined) config.observationMode = patch.observationMode;
       if (patch.participant !== undefined) config.participant = patch.participant;
       if (patch.puzzleSource !== undefined) {
         config.puzzleSource = patch.puzzleSource;
@@ -641,6 +653,7 @@ export function bootstrap(host: HTMLElement): void {
       if (
         config.size !== before.size ||
         config.dustMode !== before.dustMode ||
+        config.observationMode !== before.observationMode ||
         config.puzzleSource !== before.puzzleSource ||
         (config.puzzleSource === 'seed' && config.seedText !== before.seedText) ||
         (config.puzzleSource === 'preset' && config.presetId !== before.presetId)

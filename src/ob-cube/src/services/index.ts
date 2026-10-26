@@ -19,6 +19,7 @@ export {
   isLegalMoveLimit,
   isLegalSeedText,
   isLegalTimeLimitSec,
+  isObservationMode,
   TIME_LIMIT_RANGE,
 } from './settings';
 export type { AppSettings, ChallengeConfig } from './settings';

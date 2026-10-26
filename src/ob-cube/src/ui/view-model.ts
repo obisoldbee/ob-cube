@@ -46,6 +46,8 @@ export interface ConfigView {
   readonly timeLimitSec: number | null;
   readonly moveLimit: number | null;
   readonly dustMode: boolean;
+  /** F14 观察模式（PRD §8.2 C6）；默认 full */
+  readonly observationMode: ObservationMode;
   readonly participant: 'human' | 'agent';
   readonly puzzleSource: 'random' | 'seed' | 'preset';
   readonly seedText: string;

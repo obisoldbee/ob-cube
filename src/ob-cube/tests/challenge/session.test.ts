@@ -435,3 +435,86 @@ describe('op_id 结果缓存', () => {
     expect(session.getActionResult('op-unknown')).toBeNull();
   });
 });
+
+describe('D1：solved_pending 不被超时覆盖（AC-28 / AC-75）', () => {
+  function solveOnce(seed = 'test-seed-1') {
+    const time = createFakeClock();
+    const session = new ChallengeSession({ size: 3, seed, clock: time.now, timeLimitMs: 10_000 });
+    session.start();
+    const inverse = (move: string): string => {
+      const spec = parseMove(move, 3);
+      const base = spec.normalized.replace(/(['2])$/, '');
+      return spec.amount === 1 ? `${base}'` : spec.amount === 3 ? base : `${base}2`;
+    };
+    for (const move of [...session.record.scramble].reverse().map(inverse)) {
+      session.applyMoveNotation(move);
+    }
+    return { session, time };
+  }
+
+  it('已还原待提交时 tick 不判超时，提交仍产出 ended_solved', () => {
+    const { session, time } = solveOnce();
+    expect(session.status).toBe('solved_pending');
+    time.advance(60_000);
+    session.tick();
+    expect(session.status).toBe('solved_pending');
+    expect(session.getProgress().status).toBe('solved_pending');
+    const submit = session.submitSolution();
+    expect(submit.accepted).toBe(true);
+    expect(session.status).toBe('ended_solved');
+    expect(session.getChallengeResult().solved).toBe(true);
+  });
+
+  it('solved_pending 下 applyMove 抛 E_CUBE_ALREADY_SOLVED 且状态不变', () => {
+    const { session } = solveOnce();
+    const before = session.moveCount;
+    try {
+      session.applyMoveNotation('R');
+      expect.unreachable('应当抛出');
+    } catch (error) {
+      expect((error as { code?: string }).code).toBe('E_CUBE_ALREADY_SOLVED');
+    }
+    expect(session.status).toBe('solved_pending');
+    expect(session.moveCount).toBe(before);
+  });
+});
+
+describe('F14 after_move 观察门控（PRD §8.2 C6）', () => {
+  it('开局可观察一次，之后必须再转动才开放下一次', () => {
+    const { session } = makeSession({ observationMode: 'after_move' });
+    session.start();
+    expect(session.getProgress().observation_allowed).toBe(true);
+    expect(session.observe().visible_faces).toHaveLength(3);
+    expect(session.getProgress().observation_allowed).toBe(false);
+    expect(() => session.observe()).toThrowError(/需先完成一次转动/);
+
+    session.applyIntent('R', [1], 1, false);
+    expect(session.getProgress().observation_allowed).toBe(true);
+    expect(session.observe().visible_faces).toHaveLength(3);
+    expect(() => session.observe()).toThrowError(/需先完成一次转动/);
+  });
+
+  it('E_OBSERVATION_REQUIRES_MOVE 是独立错误码，不改状态、不耗观察预算', () => {
+    const { session } = makeSession({ observationMode: 'after_move' });
+    session.start();
+    session.observe();
+    const moves = session.moveCount;
+    try {
+      session.observe();
+      expect.unreachable('应当抛出');
+    } catch (error) {
+      expect((error as { code?: string }).code).toBe('E_OBSERVATION_REQUIRES_MOVE');
+    }
+    expect(session.moveCount).toBe(moves);
+    expect(session.status).toBe('running');
+  });
+
+  it('resetRun 重新开放开局观察', () => {
+    const { session } = makeSession({ observationMode: 'after_move' });
+    session.start();
+    session.observe();
+    session.resetRun();
+    session.start();
+    expect(session.getProgress().observation_allowed).toBe(true);
+  });
+});

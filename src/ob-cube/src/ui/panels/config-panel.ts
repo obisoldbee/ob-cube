@@ -98,6 +98,20 @@ export class ConfigPanel {
         (value) => this.host.onConfigChange({ dustMode: value === 'on' }),
       ),
       this.chipRow(
+        '观察模式',
+        [
+          { label: '完整', value: 'full', checked: view.observationMode === 'full' },
+          { label: '三面', value: 'three_faces', checked: view.observationMode === 'three_faces' },
+          { label: '单面', value: 'single_face', checked: view.observationMode === 'single_face' },
+          { label: '操作后', value: 'after_move', checked: view.observationMode === 'after_move' },
+          { label: '受限', value: 'restricted', checked: view.observationMode === 'restricted' },
+        ],
+        (value) =>
+          this.host.onConfigChange({
+            observationMode: value as ConfigView['observationMode'],
+          }),
+      ),
+      this.chipRow(
         '参与者',
         [
           { label: '人类', value: 'human', checked: view.participant === 'human' },
