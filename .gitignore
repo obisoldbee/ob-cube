@@ -20,6 +20,8 @@ Thumbs.db
 .ego/
 .workbuddy/
 .screenshots/
+# playwright-cli 的页面快照目录（临时证据，不入库）
+.playwright-cli/
 .project-conventions/runtime/
 *.sqlite3
 *.sqlite3-journal
