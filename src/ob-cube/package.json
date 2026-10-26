@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "verify": "tsc --noEmit && vitest run --coverage && vite build"
   },
   "dependencies": {
     "lucide-static": "~1.61.0",
